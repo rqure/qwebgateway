@@ -1,10 +1,9 @@
-function NewTreeNode(app) {
+function registerTreeNodeComponent(app) {
     return app.component("tree-node", {
-        // template: "#tree-node-template",
         template: `
-    <li>
+    <li class="list-group-item list-group-item-action">
         <div>{{name}}<span v-if="expandable">[{{ expanded ? '-' : '+' }}]</span></div>
-        <ul>
+        <ul class="list-group">
             <tree-node v-for="child in children" :name="child.name" :type="child.type" :id="child.id" :children="child.children"></tree-node>
         </ul>
     </li>`,

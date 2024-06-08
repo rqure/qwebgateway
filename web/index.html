@@ -11,10 +11,36 @@
 </head>
 
 <body>
-    <div id="desktop" class="container fill-v">
+    <div id="desktop" class="container-fluid fill-v">
+        <create-entity-modal id="create-entity-modal"></create-entity-modal>
+        <create-type-modal id="create-type-modal"></create-type-modal>
+        <delete-entity-modal id="delete-entity-modal"></delete-entity-modal>
+        <modify-type-modal id="modify-type-modal"></modify-type-modal>
         <div class="row fill-v">
             <div id="leftWidget" class="col-4 fill-v">
-
+                <div class="container-fluid">
+                    <div class="row mb-2 mt-2">
+                        <div class="col">
+                            <button type="button" class="btn btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#create-type-modal">Create Type</button>
+                        </div>
+                        <div class="col">
+                            <button type="button" class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#modify-type-modal">Modify Type</button>
+                        </div>
+                    </div>
+                    <div class="row mb-5">
+                        <div class="col">
+                            <button type="button" class="btn btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#create-entity-modal">Create Entity</button>
+                        </div>
+                        <div class="col">
+                            <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#delete-entity-modal">Delete Entity</button>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <ul class="list-group">
+                            <tree-node id="root"></tree-node>
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div id="rightWidget" class="col-8 fill-v">
 
@@ -27,6 +53,10 @@
     <!-- <script src="js/qmq/notification_listener.js"></script> -->
     <!-- <script src="js/qmq/notification_manager.js"></script> -->
     <!-- <script src="js/qmq/server_interactor.js"></script> -->
+    <script src="js/components/create-entity-modal.js"></script>
+    <script src="js/components/create-type-modal.js"></script>
+    <script src="js/components/delete-entity-modal.js"></script>
+    <script src="js/components/modify-type-modal.js"></script>
     <script src="js/components/tree-node.js"></script>
     <script src="js/main.js"></script>
 
