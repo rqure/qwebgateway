@@ -17,49 +17,6 @@ body {
     -o-user-select: none;
 }
 
-.hbox {
-    display: flex;
-    width: 100%;
-    gap: 10px;
-}
-
-.vbox {
-    display: flex;
+.fill-v {
     height: 100%;
-    gap: 10px;
-    flex-direction: column;
 }
-
-.box-items-focused-to-center {
-    align-items: center;
-    justify-content: center;
-}
-
-.c1 {
-    background-color: #121212;
-}
-
-.c2 {
-    background-color: #232323;
-}
-
-.c3 {
-    background-color: #801336;
-}
-
-.c4 {
-    background-color: #c72c41;
-}
-
-.c5 {
-    background-color: #ee4540;
-}
-
-.bg-alert {
-    background-color: #801336;
-}
-
-.bg-success {
-    background-color: #04AA6D;
-}
-
