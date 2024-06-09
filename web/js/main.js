@@ -9,5 +9,3 @@ async function main() {
     registerTreeNodeComponent(app);
     app.mount('#desktop');
 }
-
-main()
