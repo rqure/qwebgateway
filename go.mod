@@ -2,7 +2,7 @@ module github.com/rqure/qconfig
 
 go 1.21.6
 
-require github.com/rqure/qmq v1.2.1
+require github.com/rqure/qmq v1.2.2
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
