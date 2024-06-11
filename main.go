@@ -22,6 +22,12 @@ func main() {
 
 	dbWorker := qmq.NewDatabaseWorker(db)
 	webServiceWorker := qmq.NewWebServiceWorker()
+	configWorker := NewConfigWorker(db)
+
+	dbWorker.Signals.Connected.Connect(qmq.Slot(configWorker.OnDatabaseConnected))
+	dbWorker.Signals.Disconnected.Connect(qmq.Slot(configWorker.OnDatabaseDisconnected))
+
+	webServiceWorker.Signals.Received.Connect(qmq.SlotWithArgs(configWorker.OnNewClientMessage))
 
 	// Create a new application configuration
 	config := qmq.ApplicationConfig{
@@ -29,6 +35,7 @@ func main() {
 		Workers: []qmq.IWorker{
 			dbWorker,
 			webServiceWorker,
+			configWorker,
 		},
 	}
 

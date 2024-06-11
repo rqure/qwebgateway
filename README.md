@@ -1,1 +1,1 @@
-# qlogger
+# qconfig

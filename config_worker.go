@@ -30,13 +30,13 @@ func (w *ConfigWorker) Deinit() {
 }
 
 func (w *ConfigWorker) DoWork() {
-	if w.dbConnectionState != qmq.ConnectionState_CONNECTED {
-		return
-	}
 
 }
 
-func (w *ConfigWorker) OnNewClientMessage(client qmq.IWebClient, msg *qmq.WebMessage) {
+func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
+	client := args[0].(qmq.IWebClient)
+	msg := args[1].(*qmq.WebMessage)
+
 	if msg.Payload.MessageIs(&qmq.WebConfigCreateEntityRequest{}) {
 		w.onConfigCreateEntityRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebConfigDeleteEntityRequest{}) {
@@ -53,6 +53,10 @@ func (w *ConfigWorker) OnNewClientMessage(client qmq.IWebClient, msg *qmq.WebMes
 		w.onConfigGetEntitySchemaRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebConfigSetEntitySchemaRequest{}) {
 		w.onConfigSetEntitySchemaRequest(client, msg)
+	} else if msg.Payload.MessageIs(&qmq.WebConfigCreateSnapshotRequest{}) {
+		w.onConfigCreateSnapshotRequest(client, msg)
+	} else if msg.Payload.MessageIs(&qmq.WebConfigRestoreSnapshotRequest{}) {
+		w.onConfigRestoreSnapshotRequest(client, msg)
 	} else {
 		qmq.Error("[ConfigWorker::OnNewClientMessage] Could not handle client message. Unknown message type: %v", msg.Payload)
 	}
@@ -472,6 +476,77 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client qmq.IWebClient, msg
 		qmq.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
 		return
 	}
+	client.Write(msg)
+}
+
+func (w *ConfigWorker) onConfigCreateSnapshotRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebConfigCreateSnapshotRequest)
+	response := new(qmq.WebConfigCreateSnapshotResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	if w.dbConnectionState != qmq.ConnectionState_CONNECTED {
+		qmq.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not handle request %v. Database is not connected.", request)
+		response.Status = qmq.WebConfigCreateSnapshotResponse_FAILURE
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(response); err != nil {
+			qmq.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	qmq.Info("[ConfigWorker::onConfigCreateSnapshotRequest] Created snapshot: %v", request)
+	snapshot := w.db.CreateSnapshot()
+
+	response.Snapshot = snapshot
+	response.Status = qmq.WebConfigCreateSnapshotResponse_SUCCESS
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebConfigRestoreSnapshotRequest)
+	response := new(qmq.WebConfigRestoreSnapshotResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	if w.dbConnectionState != qmq.ConnectionState_CONNECTED {
+		qmq.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not handle request %v. Database is not connected.", request)
+		response.Status = qmq.WebConfigRestoreSnapshotResponse_FAILURE
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(response); err != nil {
+			qmq.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	qmq.Info("[ConfigWorker::onConfigRestoreSnapshotRequest] Restored snapshot: %v", request)
+	w.db.RestoreSnapshot(request.Snapshot)
+
+	response.Status = qmq.WebConfigRestoreSnapshotResponse_SUCCESS
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+		return
+	}
+
 	client.Write(msg)
 }
 
