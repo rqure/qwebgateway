@@ -24,7 +24,8 @@ function registerCreateTypeModalComponent(app) {
                 type: "{{type}}",
                 id: "{{id}}",
                 children: [],
-                expanded: false
+                expanded: false,
+                serverInteractor: app.serverInteractor
             }
         },
         mounted() {
