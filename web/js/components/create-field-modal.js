@@ -1,4 +1,4 @@
-function registerCreateFieldModalComponent(app) {
+function registerCreateFieldModalComponent(app, context) {
     return app.component("create-field-modal", {
         template: `
 <div class="modal" tabindex="-1">
@@ -15,16 +15,26 @@ function registerCreateFieldModalComponent(app) {
                 </div>
                 <div class="dropdown">
                     <button class="btn btn-secondary dropdown-toggle btn-lg w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Type
+                        {{selectedFieldType || "Select Type"}}
                     </button>
                     <ul class="dropdown-menu scrollable-dropdown-menu">
-                        <li v-for="fieldType in availableTypes"><a class="dropdown-item">{{fieldType}}</a></li>
+                        <li v-for="fieldType in availableTypes" @click="onTypeSelect(fieldType)"><a class="dropdown-item">{{fieldType}}</a></li>
                     </ul>
               </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" @click="onCreateButtonPressed">Create</button>
+                <button type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                    @click="onCancelButtonPressed">
+                    Cancel
+                </button>
+                <button type="button"
+                    class="btn btn-success"
+                    @click="onCreateButtonPressed"
+                    :disabled="isCreateDisabled">
+                    Create
+                </button>
             </div>
         </div>
     </div>
@@ -32,33 +42,51 @@ function registerCreateFieldModalComponent(app) {
         data() {
             return {
                 fieldName: "",
-                fieldType: "",
+                selectedFieldType: "",
                 availableTypes: Object.keys(proto.qmq)
                                     .filter(type => !type.startsWith("Web")),
-                serverInteractor: app.serverInteractor
+                serverInteractor: context.qConfigServerInteractor
             }
         },
         async mounted() {
             
         },
         methods: {
+            async onCancelButtonPressed() {
+                const me = this;
+                me.fieldName = "";
+                me.selectedFieldType = "";
+            },
+
             async onCreateButtonPressed() {
                 const me = this;
                 const request = new proto.qmq.WebConfigSetFieldSchemaRequest();
                 request.setField( me.fieldName );
-                request.setType( me.fieldType );
+
+                const schema = new proto.qmq.DatabaseFieldSchema();
+                schema.setName( me.fieldName );
+                schema.setType( me.selectedFieldType );
+                request.setSchema( schema );
 
                 me.serverInteractor.send(request, proto.qmq.WebConfigSetFieldSchemaResponse)
                     .then(response => {
-                        console.log(response)
+                        qDebug("[create-field-modal::onCreateButtonPressed] Response: " + response);
                     })
                     .catch(error => {
-                        Error("[create-field-modal::onCreateButtonPressed] Could not complete the request: " + error)
-                    })
+                        qError("[create-field-modal::onCreateButtonPressed] Could not complete the request: " + error)
+                    });
+            },
+
+            async onTypeSelect(fieldType) {
+                const me = this;
+                me.selectedFieldType = fieldType;
             }
         },
         computed: {
-
+            isCreateDisabled() {
+                const me = this;
+                return me.fieldName.length == 0 || me.selectedFieldType.length == 0;
+            },
         }
     })
 }

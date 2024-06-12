@@ -1,4 +1,4 @@
-function registerTreeNodeComponent(app) {
+function registerTreeNodeComponent(app, context) {
     return app.component("tree-node", {
         template: `
     <li class="list-group-item list-group-item-action">
@@ -14,7 +14,7 @@ function registerTreeNodeComponent(app) {
                 id: "{{id}}",
                 children: [],
                 expanded: false,
-                serverInteractor: app.serverInteractor
+                serverInteractor: context.qConfigServerInteractor
             }
         },
         mounted() {

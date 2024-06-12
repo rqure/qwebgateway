@@ -1,4 +1,4 @@
-function registerDeleteEntityModalComponent(app) {
+function registerDeleteEntityModalComponent(app, context) {
     return app.component("delete-entity-modal", {
         template: `
 <div class="modal" tabindex="-1">
@@ -25,7 +25,7 @@ function registerDeleteEntityModalComponent(app) {
                 id: "{{id}}",
                 children: [],
                 expanded: false,
-                serverInteractor: app.serverInteractor
+                serverInteractor: context.qConfigServerInteractor
             }
         },
         mounted() {

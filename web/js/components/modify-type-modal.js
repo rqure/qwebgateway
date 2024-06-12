@@ -1,4 +1,4 @@
-function registerModifyTypeModalComponent(app) {
+function registerModifyTypeModalComponent(app, context) {
     return app.component("modify-type-modal", {
         template: `
 <div class="modal" tabindex="-1">
@@ -25,7 +25,7 @@ function registerModifyTypeModalComponent(app) {
                 id: "{{id}}",
                 children: [],
                 expanded: false,
-                serverInteractor: app.serverInteractor
+                serverInteractor: context.qConfigServerInteractor
             }
         },
         mounted() {

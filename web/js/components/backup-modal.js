@@ -1,4 +1,4 @@
-function registerBackupModalComponent(app) {
+function registerBackupModalComponent(app, context) {
     return app.component("backup-modal", {
         template: `
 <div class="modal" tabindex="-1">
@@ -25,7 +25,7 @@ function registerBackupModalComponent(app) {
                 id: "{{id}}",
                 children: [],
                 expanded: false,
-                serverInteractor: app.serverInteractor
+                serverInteractor: context.qConfigServerInteractor
             }
         },
         mounted() {
