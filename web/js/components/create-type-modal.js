@@ -13,6 +13,19 @@ function registerCreateTypeModalComponent(app, context) {
                     <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType">
                     <label for="entityTypeNameInput">Type Name</label>
                 </div>
+                <div class="mb-3">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Add Field
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li class="dropdown-item" v-for="availableField in availableFields" @click="onSelectField(availableField)">{{availableField}}</li>
+                    </ul>
+                </div>
+                <ul>
+                    <li v-for="field in entityFields">
+                        {{field}}<span class="badge text-bg-secondary" @click="onDeleteField(field)">🗑</span>
+                    </li>
+                </ul>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -25,6 +38,7 @@ function registerCreateTypeModalComponent(app, context) {
             return {
                 entityType: "",
                 entityFields: [],
+                allFields: [],
                 serverInteractor: context.qConfigServerInteractor
             }
         },
@@ -32,10 +46,17 @@ function registerCreateTypeModalComponent(app, context) {
 
         },
         methods: {
-
+            onSelectField(field) {
+                this.entityFields.push(field);
+            },
+            onDeleteField(field) {
+                this.entityFields = this.entityFields.filter(f => f !== field);
+            }
         },
         computed: {
-
+            availableFields() {
+                return this.allFields.filter(field => !this.entityFields.includes(field));
+            }
         }
     })
 }
