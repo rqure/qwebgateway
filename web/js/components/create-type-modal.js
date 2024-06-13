@@ -10,7 +10,7 @@ function registerCreateTypeModalComponent(app, context) {
             </div>
             <div class="modal-body">
                 <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType">
+                    <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType" @change="onEntityTypeChange">
                     <label for="entityTypeNameInput">Type Name</label>
                 </div>
                 <div class="mb-3">
@@ -28,8 +28,8 @@ function registerCreateTypeModalComponent(app, context) {
                 </ul>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success">Create</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelPressed">Cancel</button>
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onCreatePressed">Create</button>
             </div>
         </div>
     </div>
@@ -38,12 +38,31 @@ function registerCreateTypeModalComponent(app, context) {
             return {
                 entityType: "",
                 entityFields: [],
+                allEntityTypes: [],
                 allFields: [],
                 serverInteractor: context.qConfigServerInteractor
             }
         },
-        mounted() {
-
+        async mounted() {
+            this.serverInteractor
+                .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
+                .then(response => {
+                    this.allFields = response.fields;
+                })
+                .catch(error => {
+                    qError(`[create-type-modal::mounted] Failed to get all fields: ${error}`)
+                    this.allFields = [];
+                });
+            
+            this.serverInteractor
+                .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
+                .then(response => {
+                    this.allEntityTypes = response.entityTypes;
+                })
+                .catch(error => {
+                    qError(`[create-type-modal::mounted] Failed to get all entity types: ${error}`)
+                    this.allEntityTypes = [];
+                });
         },
         methods: {
             onSelectField(field) {
@@ -51,7 +70,36 @@ function registerCreateTypeModalComponent(app, context) {
             },
             onDeleteField(field) {
                 this.entityFields = this.entityFields.filter(f => f !== field);
-            }
+            },
+            async onEntityTypeChange() {
+                if (!this.allEntityTypes.includes(this.entityType)) {
+                    this.entityFields = [];
+                    return;
+                }
+
+                const request = new proto.qmq.WebConfigGetEntitySchemaRequest();
+                request.setType(this.entityType);
+
+                this.serverInteractor
+                    .send(request, proto.qmq.WebConfigGetEntitySchemaResponse)
+                    .then(response => {
+                        if(response.status === proto.qmq.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                            this.entityFields = response.schema.fields;
+                        }
+                        this.entityFields = [];
+                    })
+                    .catch(error => {
+                        qError(`[create-type-modal::onEntityTypeChange] Failed to get entity schema: ${error}`)
+                        this.entityFields = [];
+                    });
+            },
+            async onCancelButtonPressed() {
+                
+            },
+
+            async onCreateButtonPressed() {
+                
+            },
         },
         computed: {
             availableFields() {
