@@ -94,9 +94,8 @@ function registerCreateTypeModalComponent(app, context) {
                     });
             },
             async onCancelButtonPressed() {
-                
-            },
 
+            },
             async onCreateButtonPressed() {
                 
             },
