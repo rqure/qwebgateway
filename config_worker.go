@@ -57,7 +57,7 @@ func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
 		w.onConfigCreateSnapshotRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebConfigRestoreSnapshotRequest{}) {
 		w.onConfigRestoreSnapshotRequest(client, msg)
-	} else {
+	} else /* TODO: else if getallfields {} */ {
 		qmq.Error("[ConfigWorker::OnNewClientMessage] Could not handle client message. Unknown message type: %v", msg.Payload)
 	}
 }

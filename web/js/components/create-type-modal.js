@@ -9,7 +9,10 @@ function registerCreateTypeModalComponent(app, context) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Modal body text goes here.</p>
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType">
+                    <label for="entityTypeNameInput">Type Name</label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -20,11 +23,8 @@ function registerCreateTypeModalComponent(app, context) {
 </div>`,
         data() {
             return {
-                name: "{{name}}",
-                type: "{{type}}",
-                id: "{{id}}",
-                children: [],
-                expanded: false,
+                entityType: "",
+                entityFields: [],
                 serverInteractor: context.qConfigServerInteractor
             }
         },
@@ -35,9 +35,7 @@ function registerCreateTypeModalComponent(app, context) {
 
         },
         computed: {
-            expandable() {
-                return this.children.length > 0;
-            }
+
         }
     })
 }

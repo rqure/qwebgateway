@@ -13,14 +13,12 @@ function registerCreateFieldModalComponent(app, context) {
                     <input type="text" class="form-control" id="fieldNameInput" placeholder="ExampleField" v-model="fieldName">
                     <label for="fieldNameInput">Field Name</label>
                 </div>
-                <div class="dropdown">
-                    <button class="btn btn-secondary dropdown-toggle btn-lg w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        {{selectedFieldType || "Select Type"}}
-                    </button>
-                    <ul class="dropdown-menu scrollable-dropdown-menu">
-                        <li v-for="fieldType in availableTypes" @click="onTypeSelect(fieldType)"><a class="dropdown-item">{{fieldType}}</a></li>
-                    </ul>
-              </div>
+                <div class="form-floating mb-3">
+                    <select class="form-select form-select-lg" id="fieldTypeSelect" aria-label="Select field type" v-model="selectedFieldType">
+                        <option v-for="fieldType in availableTypes" :value="fieldType">{{fieldType}}</option>
+                    </select>
+                    <label for="fieldTypeSelect">Field Type</label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button"
@@ -31,6 +29,7 @@ function registerCreateFieldModalComponent(app, context) {
                 </button>
                 <button type="button"
                     class="btn btn-success"
+                    data-bs-dismiss="modal"
                     @click="onCreateButtonPressed"
                     :disabled="isCreateDisabled">
                     Create
