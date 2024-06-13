@@ -57,7 +57,9 @@ func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
 		w.onConfigCreateSnapshotRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebConfigRestoreSnapshotRequest{}) {
 		w.onConfigRestoreSnapshotRequest(client, msg)
-	} else /* TODO: else if getallfields {} */ {
+	} else if msg.Payload.MessageIs(&qmq.WebConfigGetAllFieldsRequest{}) {
+		w.onConfigGetAllFieldsRequest(client, msg)
+	} else {
 		qmq.Error("[ConfigWorker::OnNewClientMessage] Could not handle client message. Unknown message type: %v", msg.Payload)
 	}
 }
@@ -544,6 +546,42 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client qmq.IWebClient, msg
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
 		qmq.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *ConfigWorker) onConfigGetAllFieldsRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebConfigGetAllFieldsRequest)
+	response := new(qmq.WebConfigGetAllFieldsResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	if w.dbConnectionState != qmq.ConnectionState_CONNECTED {
+		qmq.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not handle request %v. Database is not connected.", request)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(response); err != nil {
+			qmq.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	fields := w.db.GetFieldSchemas()
+
+	for _, field := range fields {
+		response.Fields = append(response.Fields, field.Name)
+	}
+
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
 		return
 	}
 
