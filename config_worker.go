@@ -263,7 +263,7 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qmq.IWebClient, msg 
 		return
 	}
 
-	if request.Schema.Type != request.Field {
+	if request.Schema.Name != request.Field {
 		qmq.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field and schema type do not match.", request)
 		response.Status = qmq.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()

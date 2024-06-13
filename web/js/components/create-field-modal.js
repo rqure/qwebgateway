@@ -65,7 +65,7 @@ function registerCreateFieldModalComponent(app, context) {
 
                 const schema = new proto.qmq.DatabaseFieldSchema();
                 schema.setName( me.fieldName );
-                schema.setType( me.selectedFieldType );
+                schema.setType( 'qmq.' + me.selectedFieldType );
                 request.setSchema( schema );
 
                 me.serverInteractor.send(request, proto.qmq.WebConfigSetFieldSchemaResponse)
