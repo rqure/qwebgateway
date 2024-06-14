@@ -9,16 +9,74 @@ function registerTreeNodeComponent(app, context) {
     </li>`,
         data() {
             return {
-                name: "{{name}}",
-                type: "{{type}}",
-                id: "{{id}}",
+                name: "",
+                type: "",
+                id: "",
                 children: [],
                 expanded: false,
                 serverInteractor: context.qConfigServerInteractor
             }
         },
-        mounted() {
+        async mounted() {
+            const getEntity = (entityId) => {
+                const request = new proto.qmq.WebConfigGetEntityRequest();
+                request.setId(entityId);
+                this.serverInteractor
+                    .send(request, proto.qmq.WebConfigGetEntityResponse)
+                    .then(response => {
+                        qInfo(`[tree-node::mounted] Received get entity response: ${response.getStatus()}`);
+                        if (response.getStatus() !== proto.qmq.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
+                            return;
+                        }
 
+                        this.name = response.getEntity().getName();
+                        this.type = response.getEntity().getType();
+                        this.id = response.getEntity().getId();
+                        this.children = response.getEntity().getChildrenList();
+                    })
+                    .catch(error => {
+                        qError(`[tree-node::mounted] Failed to get entity: ${error}`)
+                        this.name = "";
+                        this.type = "";
+                        this.id = "";
+                        this.children = [];
+
+                        if (error.message === "Connection closed" ) {
+                            qInfo("[tree-node::mounted] Retrying get entity request...")
+                            setTimeout(() => getEntity(entityId), 1000);
+                        }
+                    });
+            }
+
+            const getRoot = () => {
+                this.serverInteractor
+                    .send(new proto.qmq.WebConfigGetRootRequest(), proto.qmq.WebConfigGetRootResponse)
+                    .then(response => {
+                        if (response.getRootid() === "") {
+                            return;
+                        }
+
+                        getEntity(response.getRootid());
+                    })
+                    .catch(error => {
+                        qError(`[tree-node::mounted] Failed to get root: ${error}`)
+                        this.name = "";
+                        this.type = "";
+                        this.id = "";
+                        this.children = [];
+
+                        if (error.message === "Connection closed" ) {
+                            qInfo("[tree-node::mounted] Retrying get root request...")
+                            setTimeout(getRoot, 1000);
+                        }
+                    });
+            }
+
+            if (this.id === "") {
+                getRoot();
+            } else {
+                getEntity(this.id);
+            }
         },
         methods: {
 
