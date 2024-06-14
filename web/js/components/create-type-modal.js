@@ -102,10 +102,10 @@ function registerCreateTypeModalComponent(app, context) {
                 this.serverInteractor
                     .send(request, proto.qmq.WebConfigGetEntitySchemaResponse)
                     .then(response => {
-                        if(response.status === proto.qmq.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                        this.entityFields = [];
+                        if(response.getStatus() === proto.qmq.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
                             this.entityFields = response.getSchema().getFieldsList();
                         }
-                        this.entityFields = [];
                     })
                     .catch(error => {
                         qError(`[create-type-modal::onEntityTypeChange] Failed to get entity schema: ${error}`)
