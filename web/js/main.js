@@ -12,7 +12,6 @@ async function main() {
     registerCreateFieldModalComponent(app, context);
     registerCreateTypeModalComponent(app, context);
     registerDeleteEntityModalComponent(app, context);
-    registerModifyTypeModalComponent(app, context);
     registerRestoreModalComponent(app, context);
     registerTreeNodeComponent(app, context);
 

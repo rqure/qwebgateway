@@ -14,7 +14,7 @@ function registerCreateTypeModalComponent(app, context) {
                     <label for="entityTypeNameInput">Type Name</label>
                 </div>
                 <div class="mb-3">
-                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-lg w-100 btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Add Field
                     </button>
                     <ul class="dropdown-menu">
@@ -28,8 +28,8 @@ function registerCreateTypeModalComponent(app, context) {
                 </ul>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelPressed">Cancel</button>
-                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onCreatePressed">Create</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onCreateButtonPressed" :disabled="isCreateEditDisabled">Create/Edit</button>
             </div>
         </div>
     </div>
@@ -94,13 +94,32 @@ function registerCreateTypeModalComponent(app, context) {
                     });
             },
             async onCancelButtonPressed() {
-
+                this.entityType = "";
+                this.entityFields = [];
             },
             async onCreateButtonPressed() {
+                const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
+                request.setName(this.entityType);
+                request.setFields(this.entityFields);
+
+                this.serverInteractor
+                    .send(request, proto.qmq.WebConfigSetEntitySchemaResponse)
+                    .then(response => {
+                        qDebug("[create-type-modal::onCreateButtonPressed] Response: " + response);
+                    })
+                    .catch(error => {
+                        qError("[create-type-modal::onCreateButtonPressed] Could not complete the request: " + error)
+                    });
                 
+                this.entityType = "";
+                this.entityFields = [];
             },
         },
         computed: {
+            isCreateEditDisabled() {
+                return this.entityType.length == 0;
+            },
+
             availableFields() {
                 return this.allFields.filter(field => !this.entityFields.includes(field));
             }
