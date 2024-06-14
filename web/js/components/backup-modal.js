@@ -47,7 +47,7 @@ function registerBackupModalComponent(app, context) {
                             return;
                         }
                         
-                        const blob = new Blob(response.getSnapshot().serializeBinary(), {type: "application/octet-stream"});
+                        const blob = new Blob([response.getSnapshot().serializeBinary()], {type: "application/octet-stream"});
                         me.blobUrl = window.URL.createObjectURL(blob);
                     })
                     .catch(error => {
