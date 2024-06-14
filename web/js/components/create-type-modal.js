@@ -44,25 +44,43 @@ function registerCreateTypeModalComponent(app, context) {
             }
         },
         async mounted() {
-            this.serverInteractor
-                .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
-                .then(response => {
-                    this.allFields = response.fields;
-                })
-                .catch(error => {
-                    qError(`[create-type-modal::mounted] Failed to get all fields: ${error}`)
-                    this.allFields = [];
-                });
+            const getAllFields = () => {
+                this.serverInteractor
+                    .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
+                    .then(response => {
+                        qDebug(response);
+                        this.allFields = response.fields;
+                    })
+                    .catch(error => {
+                        qError(`[create-type-modal::mounted] Failed to get all fields: ${error}`)
+                        this.allFields = [];
+
+                        if (error.message === "Connection closed" ) {
+                            qInfo("[create-type-modal::mounted] Retrying get all fields request...")
+                            setTimeout(getAllFields, 1000);
+                        }
+                    });
+            }
             
-            this.serverInteractor
-                .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
-                .then(response => {
-                    this.allEntityTypes = response.entityTypes;
-                })
-                .catch(error => {
-                    qError(`[create-type-modal::mounted] Failed to get all entity types: ${error}`)
-                    this.allEntityTypes = [];
-                });
+            const getEntityTypes = () => {
+                this.serverInteractor
+                    .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
+                    .then(response => {
+                        this.allEntityTypes = response.entityTypes;
+                    })
+                    .catch(error => {
+                        qError(`[create-type-modal::mounted] Failed to get all entity types: ${error}`)
+                        this.allEntityTypes = [];
+
+                        if (error.message === "Connection closed" ) {
+                            qInfo("[create-type-modal::mounted] Retrying get all entity types request...")
+                            setTimeout(getEntityTypes, 1000);
+                        }
+                    });
+            }
+
+            getAllFields();
+            getEntityTypes();
         },
         methods: {
             onSelectField(field) {
@@ -121,7 +139,7 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             availableFields() {
-                return this.allFields.filter(field => !this.entityFields.includes(field));
+                return this.allFields?.filter(field => !this.entityFields.includes(field));
             }
         }
     })

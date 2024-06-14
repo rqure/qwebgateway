@@ -2,7 +2,7 @@ async function main() {
     const app = Vue.createApp({});
     
     const context = {
-        qConfigServerInteractor: new ServerInteractor(`${location.protocol == "https:" ? "wss:" : "ws:"}//${window.location.hostname}:20000/ws`)
+        qConfigServerInteractor: new ServerInteractor(`${location.protocol == "https:" ? "wss:" : "ws:"}//${window.location.hostname}/ws`)
     };
 
     context.qConfigServerInteractor.connect();
