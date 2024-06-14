@@ -2,26 +2,45 @@ function registerTreeNodeComponent(app, context) {
     return app.component("tree-node", {
         template: `
     <li class="list-group-item list-group-item-action">
-        <div>
-            <span class="badge text-bg-primary">{{entityType}}</span>
-            {{entityName}}
+        <div @click="toggleExpand">
+            <span class="badge text-bg-primary">{{localEntityType}}</span>
+            {{localEntityName}}
             <span class="badge text-bg-info" v-if="expandable">{{ expanded ? '-' : '+' }}</span>
         </div>
-        <ul class="list-group">
+        <ul class="list-group" v-if="expanded">
             <tree-node
                 v-for="child in entityChildren"
+                :key="child.entityId"
                 :entityName="child.entityName"
                 :entityType="child.entityType"
                 :entityId="child.entityId"
                 :entityChildren="child.entityChildren" />
         </ul>
     </li>`,
+        props: {
+            entityId: {
+                type: String,
+                default: ""
+            },
+            entityName: {
+                type: String,
+                default: ""
+            },
+            entityType: {
+                type: String,
+                default: ""
+            },
+            entityChildren: {
+                type: Array,
+                default: () => []
+            }
+        },
         data() {
             return {
-                entityName: "",
-                entityType: "",
-                entityId: "",
-                entityChildren: [],
+                localEntityId: this.entityId,
+                localEntityName: this.entityName,
+                localEntityType: this.entityType,
+                localEntityChildren: this.entityChildren,
                 expanded: false,
                 serverInteractor: context.qConfigServerInteractor
             }
@@ -49,7 +68,7 @@ function registerTreeNodeComponent(app, context) {
                             
                             getChildren(childObj, childResponse.getEntity().getChildrenList())
 
-                            obj.entityChildren.push(childObj);
+                            obj.localEntityChildren.push(childObj);
                         });
                 });
             };
@@ -65,18 +84,18 @@ function registerTreeNodeComponent(app, context) {
                             return;
                         }
 
-                        this.entityName = response.getEntity().getName();
-                        this.entityType = response.getEntity().getType();
-                        this.entityId = response.getEntity().getId();
+                        this.localEntityName = response.getEntity().getName();
+                        this.localEntityType = response.getEntity().getType();
+                        this.localEntityId = response.getEntity().getId();
 
                         getChildren(this, response.getEntity().getChildrenList());
                     })
                     .catch(error => {
                         qError(`[tree-node::mounted] Failed to get entity: ${error}`)
-                        this.entityName = "";
-                        this.entityType = "";
-                        this.entityId = "";
-                        this.entityChildren = [];
+                        this.localEntityName = "";
+                        this.localEntityType = "";
+                        this.localEntityId = "";
+                        this.localEntityChildren = [];
 
                         if (error.message === "Connection closed" ) {
                             qInfo("[tree-node::mounted] Retrying get entity request...")
@@ -97,10 +116,10 @@ function registerTreeNodeComponent(app, context) {
                     })
                     .catch(error => {
                         qError(`[tree-node::mounted] Failed to get root: ${error}`)
-                        this.entityName = "";
-                        this.entityType = "";
-                        this.entityId = "";
-                        this.entityChildren = [];
+                        this.localEntityName = "";
+                        this.localEntityType = "";
+                        this.localEntityId = "";
+                        this.localEntityChildren = [];
 
                         if (error.message === "Connection closed" ) {
                             qInfo("[tree-node::mounted] Retrying get root request...")
@@ -109,16 +128,20 @@ function registerTreeNodeComponent(app, context) {
                     });
             };
 
-            if (this.entityId === "") {
+            if (this.localEntityId === "") {
                 getRoot();
+            } else {
+                getEntity(this.localEntityId);
             }
         },
         methods: {
-
+            toggleExpand() {
+                this.expanded = !this.expanded;
+            }
         },
         computed: {
             expandable() {
-                return this.entityChildren.length > 0;
+                return this.localEntityChildren.length > 0;
             }
         }
     })
