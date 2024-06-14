@@ -45,12 +45,12 @@ function registerCreateEntityModalComponent(app, context) {
                 this.serverInteractor
                     .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
                     .then(response => {
-                        this.allEntityTypes = response.getTypesList();
-                        qDebug(`[create-entity-modal::mounted] Got all entity types: ${this.allEntityTypes}`);
+                        this.availableTypes = response.getTypesList();
+                        qDebug(`[create-entity-modal::mounted] Got all entity types: ${this.availableTypes}`);
                     })
                     .catch(error => {
                         qError(`[create-entity-modal::mounted] Failed to get all entity types: ${error}`)
-                        this.allEntityTypes = [];
+                        this.availableTypes = [];
 
                         if (error.message === "Connection closed" ) {
                             qInfo("[create-entity-modal::mounted] Retrying get all entity types request...")
