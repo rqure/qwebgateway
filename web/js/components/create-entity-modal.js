@@ -65,7 +65,7 @@ function registerCreateEntityModalComponent(app, context) {
             async onCreateButtonPressed() {
                 const me = this;
                 const request = new proto.qmq.WebConfigCreateEntityRequest();
-                request.setParentId(me.parentId);
+                request.setParentid(me.parentId);
                 request.setName(me.entityName);
                 request.setType(me.entityType);
 
