@@ -9,22 +9,17 @@ function registerBackupModalComponent(app, context) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Modal body text goes here.</p>
+                <p>Create a database backup.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success">Backup</button>
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onBackupButtonClicked">Backup</button>
             </div>
         </div>
     </div>
 </div>`,
         data() {
             return {
-                name: "{{name}}",
-                type: "{{type}}",
-                id: "{{id}}",
-                children: [],
-                expanded: false,
                 serverInteractor: context.qConfigServerInteractor
             }
         },
@@ -32,12 +27,21 @@ function registerBackupModalComponent(app, context) {
 
         },
         methods: {
-
+            async onBackupButtonClicked() {
+                const me = this;
+                const request = new proto.qmq.WebConfigCreateSnapshotRequest();
+                me.serverInteractor
+                    .send(request, proto.qmq.WebConfigCreateSnapshotResponse)
+                    .then(response => {
+                        qInfo(`[backup-modal::onBackupButtonClicked] Backup database response ${response}`);
+                    })
+                    .catch(error => {
+                        qError(`[backup-modal::onBackupButtonClicked] Failed to backup database: ${error}`);
+                    });
+            }
         },
         computed: {
-            expandable() {
-                return this.children.length > 0;
-            }
+            
         }
     })
 }

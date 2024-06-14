@@ -16,7 +16,7 @@ function registerDeleteEntityModalComponent(app, context) {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
-                <button type="button" class="btn btn-danger" @click="onDeleteButtonPressed" :disabled="isDeleteDisabled">Delete</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="onDeleteButtonPressed" :disabled="isDeleteDisabled">Delete</button>
             </div>
         </div>
     </div>

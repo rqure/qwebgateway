@@ -13,7 +13,7 @@ function registerRestoreModalComponent(app, context) {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger">Restore</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Restore</button>
             </div>
         </div>
     </div>

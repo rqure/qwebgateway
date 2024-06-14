@@ -26,7 +26,7 @@ function registerCreateEntityModalComponent(app, context) {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
-                <button type="button" class="btn btn-success" @click="onCreateButtonPressed" :disabled="isCreateDisabled">Create</button>
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onCreateButtonPressed" :disabled="isCreateDisabled">Create</button>
             </div>
         </div>
     </div>
