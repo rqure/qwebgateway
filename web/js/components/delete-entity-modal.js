@@ -9,22 +9,21 @@ function registerDeleteEntityModalComponent(app, context) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Modal body text goes here.</p>
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="entityIdInput" placeholder="ExampleEntity" v-model="entityId">
+                    <label for="entityIdInput">Entity ID</label>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger">Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
+                <button type="button" class="btn btn-danger" @click="onDeleteButtonPressed">Delete</button>
             </div>
         </div>
     </div>
 </div>`,
         data() {
             return {
-                name: "{{name}}",
-                type: "{{type}}",
-                id: "{{id}}",
-                children: [],
-                expanded: false,
+                entityId: "",
                 serverInteractor: context.qConfigServerInteractor
             }
         },
@@ -32,12 +31,26 @@ function registerDeleteEntityModalComponent(app, context) {
 
         },
         methods: {
+            onCancelButtonPressed() {
+                const me = this;
+                me.entityId = "";
+            },
 
+            async onDeleteButtonPressed() {
+                const me = this;
+                const request = new proto.qmq.WebConfigDeleteEntityRequest();
+                request.setId(me.entityId);
+                me.serverInteractor
+                    .send(request, proto.qmq.WebConfigDeleteEntityResponse)
+                    .then(response => {
+                        qInfo(`[delete-entity-modal::onDeleteButtonPressed] Delete entity response ${response}`);
+                    })
+                    .catch(error => {
+                        qError(`[delete-entity-modal::onDeleteButtonPressed] Failed to delete entity: ${error}`);
+                    });
+            }
         },
         computed: {
-            expandable() {
-                return this.children.length > 0;
-            }
         }
     })
 }
