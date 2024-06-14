@@ -9,35 +9,88 @@ function registerCreateEntityModalComponent(app, context) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Modal body text goes here.</p>
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="parentIdInput" placeholder="ExampleEntity" v-model="parentId">
+                    <label for="parentIdInput">Parent ID</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="entityNameInput" placeholder="ExampleEntity" v-model="entityName">
+                    <label for="entityNameInput">Entity Name</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <select class="form-select form-select-lg" id="entityTypeSelect" aria-label="Select entity type" v-model="entityType">
+                        <option v-for="t in availableTypes" :value="t">{{t}}</option>
+                    </select>
+                    <label for="entityTypeSelect">Entity Type</label>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success">Create</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
+                <button type="button" class="btn btn-success" @click="onCreateButtonPressed">Create</button>
             </div>
         </div>
     </div>
 </div>`,
         data() {
             return {
-                name: "{{name}}",
-                type: "{{type}}",
-                id: "{{id}}",
-                children: [],
-                expanded: false,
+                entityName: "",
+                entityType: "",
+                parentId: "",
+                availableTypes: [],
                 serverInteractor: context.qConfigServerInteractor
             }
         },
-        mounted() {
+        async mounted() {
+            const getEntityTypes = () => {
+                this.serverInteractor
+                    .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
+                    .then(response => {
+                        this.allEntityTypes = response.getTypesList();
+                        qDebug(`[create-entity-modal::mounted] Got all entity types: ${this.allEntityTypes}`);
+                    })
+                    .catch(error => {
+                        qError(`[create-entity-modal::mounted] Failed to get all entity types: ${error}`)
+                        this.allEntityTypes = [];
 
+                        if (error.message === "Connection closed" ) {
+                            qInfo("[create-entity-modal::mounted] Retrying get all entity types request...")
+                            setTimeout(getEntityTypes, 1000);
+                        }
+                    });
+            }
+
+            getEntityTypes();
         },
         methods: {
+            async onCreateButtonPressed() {
+                const me = this;
+                const request = new proto.qmq.WebConfigCreateEntityRequest();
+                request.setParentId(me.parentId);
+                request.setName(me.entityName);
+                request.setType(me.entityType);
 
+                me.serverInteractor
+                    .send(request, proto.qmq.WebConfigCreateEntityResponse)
+                    .then(response => {
+                        qInfo(`[create-entity-modal::onCreateButtonPressed] Create entity response status: ${response.getStatus()}`)
+                    })
+                    .catch(error => {
+                        qError(`[create-entity-modal::onCreateButtonPressed] Failed to create entity: ${error}`)
+                    })
+                
+                me.entityName = "";
+                me.entityType = "";
+                me.parentId = "";
+            },
+            async onCancelButtonPressed() {
+                const me = this;
+                me.entityName = "";
+                me.entityType = "";
+                me.parentId = "";
+            },
         },
         computed: {
-            expandable() {
-                return this.children.length > 0;
-            }
+            
         }
     })
 }
