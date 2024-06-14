@@ -10,14 +10,14 @@ function registerCreateTypeModalComponent(app, context) {
             </div>
             <div class="modal-body">
                 <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType" @change="onEntityTypeChange">
+                    <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType" @change="onEntityTypeChange" @keyup.enter="onEntityTypeChange">
                     <label for="entityTypeNameInput">Type Name</label>
                 </div>
                 <div class="mb-3">
                     <button class="btn btn-lg w-100 btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Add Field
                     </button>
-                    <ul class="dropdown-menu">
+                    <ul class="dropdown-menu w-100">
                         <li class="dropdown-item w-100" v-for="availableField in availableFields" @click="onSelectField(availableField)">{{availableField}}</li>
                     </ul>
                 </div>
@@ -67,6 +67,7 @@ function registerCreateTypeModalComponent(app, context) {
                     .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
                     .then(response => {
                         this.allEntityTypes = response.getTypesList();
+                        qDebug(`[create-type-modal::mounted] Got all entity types: ${this.allEntityTypes}`);
                     })
                     .catch(error => {
                         qError(`[create-type-modal::mounted] Failed to get all entity types: ${error}`)
@@ -118,12 +119,12 @@ function registerCreateTypeModalComponent(app, context) {
             async onCreateButtonPressed() {
                 const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
                 request.setName(this.entityType);
-                request.setFields(this.entityFields);
+                request.setFieldsList(this.entityFields);
 
                 this.serverInteractor
                     .send(request, proto.qmq.WebConfigSetEntitySchemaResponse)
                     .then(response => {
-                        qDebug("[create-type-modal::onCreateButtonPressed] Response: " + response.toObject());
+                        qDebug("[create-type-modal::onCreateButtonPressed] Response: " + response);
                     })
                     .catch(error => {
                         qError("[create-type-modal::onCreateButtonPressed] Could not complete the request: " + error)
