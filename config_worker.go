@@ -59,6 +59,8 @@ func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
 		w.onConfigRestoreSnapshotRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebConfigGetAllFieldsRequest{}) {
 		w.onConfigGetAllFieldsRequest(client, msg)
+	} else if msg.Payload.MessageIs(&qmq.WebConfigGetRootRequest{}) {
+		w.onConfigGetRootRequest(client, msg)
 	} else {
 		qmq.Error("[ConfigWorker::OnNewClientMessage] Could not handle client message. Unknown message type: %v", msg.Payload)
 	}
@@ -582,6 +584,41 @@ func (w *ConfigWorker) onConfigGetAllFieldsRequest(client qmq.IWebClient, msg *q
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
 		qmq.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *ConfigWorker) onConfigGetRootRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebConfigGetRootRequest)
+	response := new(qmq.WebConfigGetRootResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[ConfigWorker::onConfigGetRootRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	if w.dbConnectionState != qmq.ConnectionState_CONNECTED {
+		qmq.Error("[ConfigWorker::onConfigGetRootRequest] Could not handle request %v. Database is not connected.", request)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(response); err != nil {
+			qmq.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	root := w.db.FindEntities("Root")
+
+	for _, id := range root {
+		response.RootId = id
+	}
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
 		return
 	}
 
