@@ -18,12 +18,13 @@ function registerCreateTypeModalComponent(app, context) {
                         Add Field
                     </button>
                     <ul class="dropdown-menu">
-                        <li class="dropdown-item" v-for="availableField in availableFields" @click="onSelectField(availableField)">{{availableField}}</li>
+                        <li class="dropdown-item w-100" v-for="availableField in availableFields" @click="onSelectField(availableField)">{{availableField}}</li>
                     </ul>
                 </div>
-                <ul>
-                    <li v-for="field in entityFields">
-                        {{field}}<span class="badge text-bg-secondary" @click="onDeleteField(field)">🗑</span>
+                <ul class="list-group">
+                    <li v-for="field in entityFields" class="list-group-item d-flex justify-content-between align-items-start">
+                        <div>{{field}}</div>
+                        <span class="badge text-bg-secondary" @click="onDeleteField(field)">🗑</span>
                     </li>
                 </ul>
             </div>
@@ -48,8 +49,7 @@ function registerCreateTypeModalComponent(app, context) {
                 this.serverInteractor
                     .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
                     .then(response => {
-                        qDebug(response);
-                        this.allFields = response.fields;
+                        this.allFields = response.getFieldsList();
                     })
                     .catch(error => {
                         qError(`[create-type-modal::mounted] Failed to get all fields: ${error}`)
@@ -66,7 +66,7 @@ function registerCreateTypeModalComponent(app, context) {
                 this.serverInteractor
                     .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
                     .then(response => {
-                        this.allEntityTypes = response.entityTypes;
+                        this.allEntityTypes = response.getTypesList();
                     })
                     .catch(error => {
                         qError(`[create-type-modal::mounted] Failed to get all entity types: ${error}`)
@@ -102,7 +102,7 @@ function registerCreateTypeModalComponent(app, context) {
                     .send(request, proto.qmq.WebConfigGetEntitySchemaResponse)
                     .then(response => {
                         if(response.status === proto.qmq.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
-                            this.entityFields = response.schema.fields;
+                            this.entityFields = response.getSchema().getFieldsList();
                         }
                         this.entityFields = [];
                     })
@@ -123,7 +123,7 @@ function registerCreateTypeModalComponent(app, context) {
                 this.serverInteractor
                     .send(request, proto.qmq.WebConfigSetEntitySchemaResponse)
                     .then(response => {
-                        qDebug("[create-type-modal::onCreateButtonPressed] Response: " + response);
+                        qDebug("[create-type-modal::onCreateButtonPressed] Response: " + response.toObject());
                     })
                     .catch(error => {
                         qError("[create-type-modal::onCreateButtonPressed] Could not complete the request: " + error)
@@ -139,7 +139,7 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             availableFields() {
-                return this.allFields?.filter(field => !this.entityFields.includes(field));
+                return this.allFields.filter(field => !this.entityFields.includes(field));
             }
         }
     })
