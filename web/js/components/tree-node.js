@@ -3,13 +3,13 @@ function registerTreeNodeComponent(app, context) {
         template: `
     <li class="list-group-item list-group-item-action">
         <div @click="toggleExpand">
+            <span class="badge text-bg-info" v-if="expandable">{{ expanded ? '-' : '+' }}</span>
             <span class="badge text-bg-primary">{{localEntityType}}</span>
             {{localEntityName}}
-            <span class="badge text-bg-info" v-if="expandable">{{ expanded ? '-' : '+' }}</span>
         </div>
-        <ul class="list-group" v-if="expanded">
+        <ul class="list-group list-group-flush" v-if="expanded">
             <tree-node
-                v-for="child in entityChildren"
+                v-for="child in localEntityChildren"
                 :key="child.entityId"
                 :entityName="child.entityName"
                 :entityType="child.entityType"
