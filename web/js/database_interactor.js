@@ -5,6 +5,9 @@ DATABASE_EVENTS = {
     ENTITY_DELETED: "entity_deleted",
     FIELD_CREATED: "field_created",
     ENTITY_TYPE_CREATED: "entity_type_created",
+    QUERY_ALL_FIELDS: "query_all_fields",
+    QUERY_ALL_ENTITY_TYPES: "query_all_entity_types",
+    QUERY_ENTITY: "query_entity",
     CREATE_SNAPSHOT: "create_snapshot",
     RESTORE_SNAPSHOT: "restore_snapshot",
     NOTIFICATION: "notification",
@@ -17,11 +20,11 @@ class DatabaseEventListener {
         this._callback = callback;
     }
 
-    get eventName() {
+    getEventName() {
         return this._eventName;
     }
 
-    get callback() {
+    getCallback() {
         return this._callback;
     }
 
@@ -68,32 +71,88 @@ class DatabaseInteractor {
         this._eventManager = new DatabaseEventManager();
     }
 
-    get serverInteractor() {
+    getServerInteractor() {
         return this._serverInteractor;
     }
 
-    get eventManager() {
+    getEventManager() {
         return this._eventManager;
     }
 
-    availableFieldTypes() {
+    getAvailableFieldTypes() {
         return Object.keys(proto.qmq).filter(type => !type.startsWith("Web"));
     }
 
-    async createEntity() {
+    async createEntity(parentId, entityName, entityType) {
+        const me = this;
+        const request = new proto.qmq.WebConfigCreateEntityRequest();
+        request.setParentid(parentId);
+        request.setName(entityName);
+        request.setType(entityType);
+
+        me._serverInteractor
+            .send(request, proto.qmq.WebConfigCreateEntityResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.WebConfigCreateEntityResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::createEntity] Could not complete the request: ${response.getStatus()}`);
+                    return;
+                }
+                
+                me._eventManager.dispatchEvent(DATABASE_EVENTS.ENTITY_CREATED, {entityName: entityName, entityType: entityType, parentId: parentId});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::createEntity] Failed to create entity: ${error}`)
+            })
+    }
+
+    async queryEntity() {
 
     }
 
-    async getEntity() {
-
+    async queryAllFields() {
+        this._serverInteractor
+            .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
+            .then(response => {
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.QUERY_ALL_FIELDS, {fields: response.getFieldsList()});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::queryAllFields] Failed to get all fields: ${error}`)
+            });
     }
 
-    async setEntity() {
+    async queryAllEntityTypes() {
+        this._serverInteractor
+            .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
+            .then(response => {
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.QUERY_ALL_ENTITY_TYPES, {entityTypes: response.getTypesList()});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::queryAllEntityTypes] Failed to get all entity types: ${error}`)
+            });
+    }
+
+    async updateEntity() {
 
     }
 
     async deleteEntity() {
+        const me = this;
+        const request = new proto.qmq.WebConfigDeleteEntityRequest();
+        request.setId(entityId);
 
+        me._serverInteractor
+            .send(request, proto.qmq.WebConfigDeleteEntityResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.WebConfigDeleteEntityResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::deleteEntity] Could not complete the request: ${response.getStatus()}`);
+                    return;
+                }
+
+                me._eventManager.dispatchEvent(DATABASE_EVENTS.ENTITY_DELETED, {entityId: entityId});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::deleteEntity] Failed to delete entity: ${error}`);
+            });
     }
 
     async createField(fieldName, fieldType) {
