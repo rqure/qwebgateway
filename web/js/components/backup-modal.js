@@ -19,15 +19,35 @@ function registerBackupModalComponent(app, context) {
     </div>
 </div>`,
         data() {
+            database
+                .getEventManager()
+                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
+                .addEventListener(DATABASE_EVENTS.CREATE_SNAPSHOT, this.onCreateSnapshot.bind(this))
+
             return {
                 blobUrl: "",
-                serverInteractor: context.qConfigServerInteractor
+                database: context.qDatabaseInteractor,
+                isDatabaseConnected: false
             }
         },
         mounted() {
 
         },
         methods: {
+            onDatabaseConnected() {
+                this.isDatabaseConnected = true;
+            },
+
+            onDatabaseDisconnected() {
+                this.isDatabaseConnected = false;
+            },
+
+            onCreateSnapshot(event) {
+                const blob = new Blob([event.snapshot.serializeBinary()], {type: "application/octet-stream"});
+                this.blobUrl = window.URL.createObjectURL(blob);
+            },
+
             onCancelButtonClicked() {
                 if (this.blobUrl !== "") {
                     window.URL.revokeObjectURL(this.blobUrl);
@@ -37,22 +57,7 @@ function registerBackupModalComponent(app, context) {
             },
 
             async onBackupButtonClicked() {
-                const me = this;
-                const request = new proto.qmq.WebConfigCreateSnapshotRequest();
-                me.serverInteractor
-                    .send(request, proto.qmq.WebConfigCreateSnapshotResponse)
-                    .then(response => {
-                        qInfo(`[backup-modal::onBackupButtonClicked] Backup database response ${response.getStatus()}`);
-                        if (response.getStatus() !== proto.qmq.WebConfigCreateSnapshotResponse.StatusEnum.SUCCESS) {
-                            return;
-                        }
-                        
-                        const blob = new Blob([response.getSnapshot().serializeBinary()], {type: "application/octet-stream"});
-                        me.blobUrl = window.URL.createObjectURL(blob);
-                    })
-                    .catch(error => {
-                        qError(`[backup-modal::onBackupButtonClicked] Failed to backup database: ${error}`);
-                    });
+                this.database.createSnapshot();
             }
         },
         computed: {

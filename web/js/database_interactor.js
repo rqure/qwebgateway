@@ -45,6 +45,8 @@ class DatabaseEventManager {
         }
 
         this._listeners[eventName].push(new DatabaseEventListener(eventName, callback));
+
+        return this;
     }
 
     removeEventListener(eventName, callback) {

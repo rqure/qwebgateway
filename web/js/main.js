@@ -2,10 +2,8 @@ async function main() {
     const app = Vue.createApp({});
     
     const context = {
-        qConfigServerInteractor: new ServerInteractor(`${location.protocol == "https:" ? "wss:" : "ws:"}//${window.location.hostname}:20000/ws`)
+        qDatabaseInteractor: new DatabaseInteractor()
     };
-
-    context.qConfigServerInteractor.connect();
 
     registerBackupModalComponent(app, context);
     registerCreateEntityModalComponent(app, context);
@@ -16,4 +14,6 @@ async function main() {
     registerTreeNodeComponent(app, context);
 
     app.mount('#desktop');
+
+    context.qDatabaseInteractor.runInBackground(true);
 }
