@@ -61,8 +61,6 @@ func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
 		w.onConfigGetAllFieldsRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebConfigGetRootRequest{}) {
 		w.onConfigGetRootRequest(client, msg)
-	} else {
-		qmq.Error("[ConfigWorker::OnNewClientMessage] Could not handle client message. Unknown message type: %v", msg.Payload)
 	}
 }
 

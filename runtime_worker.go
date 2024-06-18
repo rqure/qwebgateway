@@ -58,6 +58,8 @@ func (w *RuntimeWorker) OnNewClientMessage(args ...interface{}) {
 		w.onRuntimeUnregisterNotificationRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qmq.WebRuntimeGetNotificationsRequest{}) {
 		w.onRuntimeGetNotificationsRequest(client, msg)
+	} else if msg.Payload.MessageIs(&qmq.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
+		w.onRuntimeGetDatabaseConnectionStatusRequest(client, msg)
 	}
 }
 
@@ -192,6 +194,26 @@ func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client qmq.IWebClient, 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
 		qmq.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebRuntimeGetDatabaseConnectionStatusRequest)
+	response := new(qmq.WebRuntimeGetDatabaseConnectionStatusResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	response.Status = &qmq.ConnectionState{Raw: w.dbConnectionState}
+
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not marshal response: %v", err)
 		return
 	}
 

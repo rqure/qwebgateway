@@ -265,7 +265,7 @@ class DatabaseInteractor {
     }
 
     async registerNotification() {
-
+        
     }
 
     async unregisterNotification() {
