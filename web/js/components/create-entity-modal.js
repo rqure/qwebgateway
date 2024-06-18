@@ -58,7 +58,9 @@ function registerCreateEntityModalComponent(app, context) {
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
-                this.database.queryAllEntityTypes();
+                if (this.isDatabaseConnected) {
+                    this.database.queryAllEntityTypes();
+                }
             },
 
             onDatabaseDisconnected() {
@@ -77,7 +79,7 @@ function registerCreateEntityModalComponent(app, context) {
                 me.entityType = "";
                 me.parentId = "";
             },
-            
+
             async onCancelButtonPressed() {
                 const me = this;
 

@@ -39,7 +39,10 @@ function registerCreateTypeModalComponent(app, context) {
             context.qDatabaseInteractor
                 .getEventManager()
                 .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)));
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ALL_FIELDS, this.onQueryAllFields.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ALL_ENTITY_TYPES, this.onQueryAllEntityTypes.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, this.onQueryEntitySchema.bind(this)));
 
             return {
                 entityType: "",
@@ -51,98 +54,69 @@ function registerCreateTypeModalComponent(app, context) {
             }
         },
         async mounted() {
-            const getAllFields = () => {
-                this.serverInteractor
-                    .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
-                    .then(response => {
-                        this.allFields = response.getFieldsList();
-                    })
-                    .catch(error => {
-                        qError(`[create-type-modal::mounted] Failed to get all fields: ${error}`)
-                        this.allFields = [];
+            this.isDatabaseConnected = this.database.isConnected();
 
-                        if (error.message === "Connection closed" ) {
-                            qInfo("[create-type-modal::mounted] Retrying get all fields request...")
-                            setTimeout(getAllFields, 1000);
-                        }
-                    });
+            if (this.isDatabaseConnected) {
+                this.database.queryAllEntityTypes();
+                this.database.queryAllFields();
             }
-            
-            const getEntityTypes = () => {
-                this.serverInteractor
-                    .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
-                    .then(response => {
-                        this.allEntityTypes = response.getTypesList();
-                        qDebug(`[create-type-modal::mounted] Got all entity types: ${this.allEntityTypes}`);
-                    })
-                    .catch(error => {
-                        qError(`[create-type-modal::mounted] Failed to get all entity types: ${error}`)
-                        this.allEntityTypes = [];
-
-                        if (error.message === "Connection closed" ) {
-                            qInfo("[create-type-modal::mounted] Retrying get all entity types request...")
-                            setTimeout(getEntityTypes, 1000);
-                        }
-                    });
-            }
-
-            getAllFields();
-            getEntityTypes();
         },
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
+
+                this.database.queryAllEntityTypes();
+                this.database.queryAllFields();
             },
 
             onDatabaseDisconnected() {
                 this.isDatabaseConnected = false;
             },
-            
+
+            onQueryAllFields(event) {
+                this.allFields = event.fields;
+            },
+
+            onQueryAllEntityTypes(event) {
+                this.allEntityTypes = event.entityTypes;
+            },
+
+            onQueryEntitySchema(event) {
+                this.entityFields = [];
+                
+                if (event.schema.getName() === this.entityType) {
+                    this.entityFields = event.schema.getFieldsList();
+                }
+            },
+
             onSelectField(field) {
                 this.entityFields.push(field);
             },
+
             onDeleteField(field) {
                 this.entityFields = this.entityFields.filter(f => f !== field);
             },
+
             async onEntityTypeChange() {
                 if (!this.allEntityTypes.includes(this.entityType)) {
                     this.entityFields = [];
                     return;
                 }
 
-                const request = new proto.qmq.WebConfigGetEntitySchemaRequest();
-                request.setType(this.entityType);
-
-                this.serverInteractor
-                    .send(request, proto.qmq.WebConfigGetEntitySchemaResponse)
-                    .then(response => {
-                        this.entityFields = [];
-                        if(response.getStatus() === proto.qmq.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
-                            this.entityFields = response.getSchema().getFieldsList();
-                        }
-                    })
-                    .catch(error => {
-                        qError(`[create-type-modal::onEntityTypeChange] Failed to get entity schema: ${error}`)
-                        this.entityFields = [];
-                    });
+                this.database.queryEntitySchema(this.entityType);
             },
+
             async onCancelButtonPressed() {
                 this.entityType = "";
                 this.entityFields = [];
             },
+
             async onCreateButtonPressed() {
                 const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
                 request.setName(this.entityType);
                 request.setFieldsList(this.entityFields);
 
-                this.serverInteractor
-                    .send(request, proto.qmq.WebConfigSetEntitySchemaResponse)
-                    .then(response => {
-                        qDebug("[create-type-modal::onCreateButtonPressed] Response: " + response);
-                    })
-                    .catch(error => {
-                        qError("[create-type-modal::onCreateButtonPressed] Could not complete the request: " + error)
-                    });
+                this.database.createOrUpdateEntityType(this.entityType, this.entityFields.slice());
                 
                 this.entityType = "";
                 this.entityFields = [];
