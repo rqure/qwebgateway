@@ -76,6 +76,10 @@ class DatabaseInteractor {
         this._isConnected = null;
     }
 
+    isConnected() {
+        return this._isConnected;
+    }
+
     getServerInteractor() {
         return this._serverInteractor;
     }
