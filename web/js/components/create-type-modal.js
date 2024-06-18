@@ -36,12 +36,18 @@ function registerCreateTypeModalComponent(app, context) {
     </div>
 </div>`,
         data() {
+            context.qDatabaseInteractor
+                .getEventManager()
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)));
+
             return {
                 entityType: "",
                 entityFields: [],
                 allEntityTypes: [],
                 allFields: [],
-                serverInteractor: context.qConfigServerInteractor
+                database: context.qDatabaseInteractor,
+                isDatabaseConnected: false
             }
         },
         async mounted() {
@@ -84,6 +90,14 @@ function registerCreateTypeModalComponent(app, context) {
             getEntityTypes();
         },
         methods: {
+            onDatabaseConnected() {
+                this.isDatabaseConnected = true;
+            },
+
+            onDatabaseDisconnected() {
+                this.isDatabaseConnected = false;
+            },
+            
             onSelectField(field) {
                 this.entityFields.push(field);
             },
@@ -136,7 +150,7 @@ function registerCreateTypeModalComponent(app, context) {
         },
         computed: {
             isCreateEditDisabled() {
-                return this.entityType.length == 0;
+                return this.entityType.length == 0 || !this.isDatabaseConnected;
             },
 
             availableFields() {

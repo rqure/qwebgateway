@@ -39,18 +39,33 @@ function registerCreateFieldModalComponent(app, context) {
     </div>
 </div>`,
         data() {
+            context.qDatabaseInteractor
+                .getEventManager()
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)));
+
             return {
                 fieldName: "",
                 selectedFieldType: "",
-                availableTypes: Object.keys(proto.qmq)
-                                    .filter(type => !type.startsWith("Web")),
-                serverInteractor: context.qConfigServerInteractor
+                availableTypes: context.qDatabaseInteractor.getAvailableFieldTypes(),
+                database: context.qDatabaseInteractor,
+                isDatabaseConnected: false
             }
         },
+
         async mounted() {
-            
+            this.isDatabaseConnected = this.database.isConnected();
         },
+
         methods: {
+            onDatabaseConnected() {
+                this.isDatabaseConnected = true;
+            },
+
+            onDatabaseDisconnected() {
+                this.isDatabaseConnected = false;
+            },
+
             async onCancelButtonPressed() {
                 const me = this;
                 me.fieldName = "";
@@ -58,22 +73,7 @@ function registerCreateFieldModalComponent(app, context) {
             },
 
             async onCreateButtonPressed() {
-                const me = this;
-                const request = new proto.qmq.WebConfigSetFieldSchemaRequest();
-                request.setField( me.fieldName );
-
-                const schema = new proto.qmq.DatabaseFieldSchema();
-                schema.setName( me.fieldName );
-                schema.setType( 'qmq.' + me.selectedFieldType );
-                request.setSchema( schema );
-
-                me.serverInteractor.send(request, proto.qmq.WebConfigSetFieldSchemaResponse)
-                    .then(response => {
-                        qDebug("[create-field-modal::onCreateButtonPressed] Response: " + response);
-                    })
-                    .catch(error => {
-                        qError("[create-field-modal::onCreateButtonPressed] Could not complete the request: " + error)
-                    });
+                this.database.createField(me.fieldName, me.selectedFieldType);
             },
 
             async onTypeSelect(fieldType) {
@@ -84,7 +84,7 @@ function registerCreateFieldModalComponent(app, context) {
         computed: {
             isCreateDisabled() {
                 const me = this;
-                return me.fieldName.length == 0 || me.selectedFieldType.length == 0;
+                return me.fieldName.length == 0 || me.selectedFieldType.length == 0 || !me.isDatabaseConnected;
             },
         }
     })

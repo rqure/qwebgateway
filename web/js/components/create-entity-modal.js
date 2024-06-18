@@ -77,6 +77,7 @@ function registerCreateEntityModalComponent(app, context) {
                 me.entityType = "";
                 me.parentId = "";
             },
+            
             async onCancelButtonPressed() {
                 const me = this;
 
