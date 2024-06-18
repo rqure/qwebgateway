@@ -116,3 +116,84 @@ func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qmq.IWebClient, msg *qmq
 
 	client.Write(msg)
 }
+
+func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebRuntimeRegisterNotificationRequest)
+	response := new(qmq.WebRuntimeRegisterNotificationResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	for _, request := range request.Requests {
+		token := w.db.Notify(request, w.onProcessNotifications)
+
+		if w.clientSubscriptions[client.Id()][token] == nil {
+			w.clientSubscriptions[client.Id()][token] = make([]*qmq.DatabaseNotification, 0)
+		}
+
+		qmq.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification: %v for client %s", token, client.Id())
+
+		response.Tokens = append(response.Tokens, token)
+	}
+
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebRuntimeUnregisterNotificationRequest)
+	response := new(qmq.WebRuntimeUnregisterNotificationResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	for _, token := range request.Tokens {
+		w.db.Unnotify(token)
+
+		if w.clientSubscriptions[client.Id()][token] != nil {
+			delete(w.clientSubscriptions[client.Id()], token)
+		}
+
+		qmq.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
+	}
+
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
+	request := new(qmq.WebRuntimeGetNotificationsRequest)
+	response := new(qmq.WebRuntimeGetNotificationsResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	for token, notifications := range w.clientSubscriptions[client.Id()] {
+		response.Notifications = append(response.Notifications, notifications...)
+		w.clientSubscriptions[client.Id()][token] = make([]*qmq.DatabaseNotification, 0)
+	}
+
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qmq.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
