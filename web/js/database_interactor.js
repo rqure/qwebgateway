@@ -68,8 +68,10 @@ class DatabaseEventManager {
 class DatabaseInteractor {
     constructor() {
         this._serverInteractor = new ServerInteractor(`${location.protocol == "https:" ? "wss:" : "ws:"}//${location.hostname}${location.port == "" ? "" : ":" + location.port}/ws`);
-        this._serverInteractor.connect();
         this._eventManager = new DatabaseEventManager();
+        this._runInBackground = false;
+        this._mainLoopInterval = 500;
+        this._isConnected = null;
     }
 
     getServerInteractor() {
@@ -82,6 +84,55 @@ class DatabaseInteractor {
 
     getAvailableFieldTypes() {
         return Object.keys(proto.qmq).filter(type => !type.startsWith("Web"));
+    }
+
+    setMainLoopInterval(interval) {
+        this._mainLoopInterval = interval
+    }
+
+    runInBackground(runInBackground) {
+        this._runInBackground = runInBackground;
+
+        this.mainLoop();
+    }
+
+    mainLoop() {
+        if (!this._runInBackground) {
+            return;
+        }
+
+        if (!this._serverInteractor.isConnected()) {
+            this._serverInteractor.connect();
+
+            setTimeout(() => {
+                this.mainLoop();
+            }, this._mainLoopInterval);
+
+            return;
+        }
+
+        this._serverInteractor
+            .send(new proto.qmq.WebRuntimeGetDatabaseConnectionStatusRequest(), proto.qmq.WebRuntimeGetDatabaseConnectionStatusResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.ConnectionState.ConnectionStateEnum.CONNECTED) {
+                    if(this._isConnected !== false) {
+                        this._isConnected = false;
+                        this._eventManager.dispatchEvent(DATABASE_EVENTS.DISCONNECTED, {});
+                    }
+                } else {
+                    if(this._isConnected !== true) {
+                        this._isConnected = true;
+                        this._eventManager.dispatchEvent(DATABASE_EVENTS.CONNECTED, {});
+                    }
+                }
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::mainLoop] Failed to get database connection status: ${error}`);
+            });
+
+        setTimeout(() => {
+            this.mainLoop();
+        }, this._mainLoopInterval);
     }
 
     async createEntity(parentId, entityName, entityType) {
@@ -265,7 +316,7 @@ class DatabaseInteractor {
     }
 
     async registerNotification() {
-        
+
     }
 
     async unregisterNotification() {
