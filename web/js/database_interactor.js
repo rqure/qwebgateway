@@ -7,6 +7,7 @@ DATABASE_EVENTS = {
     ENTITY_TYPE_CREATED: "entity_type_created",
     QUERY_ALL_FIELDS: "query_all_fields",
     QUERY_ALL_ENTITY_TYPES: "query_all_entity_types",
+    QUERY_ENTITY_SCHEMA: "query_entity_schema",
     QUERY_ENTITY: "query_entity",
     CREATE_SNAPSHOT: "create_snapshot",
     RESTORE_SNAPSHOT: "restore_snapshot",
@@ -105,8 +106,41 @@ class DatabaseInteractor {
             })
     }
 
-    async queryEntity() {
+    async queryEntity(entityId) {
+        const request = new proto.qmq.WebConfigGetEntityRequest();
+        request.setId(entityId);
+        this._serverInteractor
+            .send(request, proto.qmq.WebConfigGetEntityResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::queryEntity] Could not complete the request: ${response.getStatus()}`);
+                    return;
+                }
+                
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.QUERY_ENTITY, {entity: response.getEntity()});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::queryEntity] Failed to get entity: ${error}`)
+            });
+    }
 
+    async queryEntitySchema(entityType) {
+        const request = new proto.qmq.WebConfigGetEntitySchemaRequest();
+        request.setType(entityType);
+
+        this._serverInteractor
+            .send(request, proto.qmq.WebConfigGetEntitySchemaResponse)
+            .then(response => {
+                if(response.getStatus() !== proto.qmq.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::queryEntitySchema] Failed to get entity schema: ${response.getStatus()}`);
+                    return;
+                }
+
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, {schema: response.getSchema()});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::queryEntitySchema] Failed to get entity schema: ${error}`)
+            });
     }
 
     async queryAllFields() {
@@ -131,10 +165,6 @@ class DatabaseInteractor {
             });
     }
 
-    async updateEntity() {
-
-    }
-
     async deleteEntity() {
         const me = this;
         const request = new proto.qmq.WebConfigDeleteEntityRequest();
@@ -152,6 +182,25 @@ class DatabaseInteractor {
             })
             .catch(error => {
                 qError(`[DatabaseInteractor::deleteEntity] Failed to delete entity: ${error}`);
+            });
+    }
+
+    async createOrUpdateEntityType(entityType, entityFields) {
+        const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
+        request.setName(entityType);
+        request.setFieldsList(entityFields);
+
+        this._serverInteractor
+            .send(request, proto.qmq.WebConfigSetEntitySchemaResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.WebConfigSetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                    qError("[DatabaseInteractor::createOrUpdateEntityType] Could not complete the request: " + response.getStatus());
+                    return;
+                }
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.ENTITY_TYPE_CREATED, {entityType: entityType, entityFields: entityFields});
+            })
+            .catch(error => {
+                qError("[DatabaseInteractor::createOrUpdateEntityType] Could not complete the request: " + error)
             });
     }
 
