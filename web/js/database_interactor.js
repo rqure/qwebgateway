@@ -1,7 +1,14 @@
 DATABASE_EVENTS = {
+    CONNECTED: "connected",
+    DISCONNECTED: "disconnected",
     ENTITY_CREATED: "entity_created",
     ENTITY_DELETED: "entity_deleted",
     FIELD_CREATED: "field_created",
+    ENTITY_TYPE_CREATED: "entity_type_created",
+    CREATE_SNAPSHOT: "create_snapshot",
+    RESTORE_SNAPSHOT: "restore_snapshot",
+    NOTIFICATION: "notification",
+    READ_RESULT: "read_result"
 }
 
 class DatabaseEventListener {
@@ -100,7 +107,11 @@ class DatabaseInteractor {
 
         this._serverInteractor.send(request, proto.qmq.WebConfigSetFieldSchemaResponse)
             .then(response => {
-                qDebug("[DatabaseInteractor::createField] Response: " + response);
+                if (response.getStatus() !== proto.qmq.WebConfigSetFieldSchemaResponse.StatusEnum.SUCCESS) {
+                    qError("[DatabaseInteractor::createField] Could not complete the request: " + response.getStatus());
+                    return;
+                }
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.FIELD_CREATED, {fieldName: fieldName, fieldType: fieldType});
             })
             .catch(error => {
                 qError("[DatabaseInteractor::createField] Could not complete the request: " + error)
@@ -114,21 +125,35 @@ class DatabaseInteractor {
         me._serverInteractor
             .send(request, proto.qmq.WebConfigCreateSnapshotResponse)
             .then(response => {
-                qInfo(`[DatabaseInteractor::createSnapshot] Backup database response ${response.getStatus()}`);
                 if (response.getStatus() !== proto.qmq.WebConfigCreateSnapshotResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::createSnapshot] Could not complete the request: ${response.getStatus()}`);
                     return;
                 }
                 
-                const blob = new Blob([response.getSnapshot().serializeBinary()], {type: "application/octet-stream"});
-                me.blobUrl = window.URL.createObjectURL(blob);
+                me._eventManager.dispatchEvent(DATABASE_EVENTS.CREATE_SNAPSHOT, {snapshot: response.getSnapshot()});
             })
             .catch(error => {
-                qError(`[backup-modal::onBackupButtonClicked] Failed to backup database: ${error}`);
+                qError(`[DatabaseInteractor::createSnapshot] Failed to backup database: ${error}`);
             });
     }
 
     async restoreSnapshot() {
+        const me = this;
+        const request = new proto.qmq.WebConfigRestoreSnapshotRequest();
+        request.setSnapshot((me.snapshot));
+        me._serverInteractor
+            .send(request, proto.qmq.WebConfigRestoreSnapshotResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.WebConfigRestoreSnapshotResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::restoreSnapshot] Could not complete the request: ${response.getStatus()}`);
+                    return;
+                }
 
+                me._eventManager.dispatchEvent(DATABASE_EVENTS.RESTORE_SNAPSHOT, {});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::restoreSnapshot] Failed to restore database: ${error}`);
+            });
     }
 
     async registerNotification() {
