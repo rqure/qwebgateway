@@ -222,7 +222,7 @@ class DatabaseInteractor {
             });
     }
 
-    async deleteEntity() {
+    async deleteEntity(entityId) {
         const me = this;
         const request = new proto.qmq.WebConfigDeleteEntityRequest();
         request.setId(entityId);

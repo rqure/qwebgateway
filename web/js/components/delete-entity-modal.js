@@ -22,37 +22,43 @@ function registerDeleteEntityModalComponent(app, context) {
     </div>
 </div>`,
         data() {
+            context.qDatabaseInteractor
+                .getEventManager()
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)));
+
             return {
                 entityId: "",
-                serverInteractor: context.qConfigServerInteractor
+                database: context.qDatabaseInteractor,
+                isDatabaseConnected: false
             }
         },
-        mounted() {
 
+        mounted() {
+            this.isDatabaseConnected = this.database.isConnected();
         },
+
         methods: {
+            onDatabaseConnected() {
+                this.isDatabaseConnected = true;
+            },
+
+            onDatabaseDisconnected() {
+                this.isDatabaseConnected = false;
+            },
+
             onCancelButtonPressed() {
                 const me = this;
                 me.entityId = "";
             },
 
             async onDeleteButtonPressed() {
-                const me = this;
-                const request = new proto.qmq.WebConfigDeleteEntityRequest();
-                request.setId(me.entityId);
-                me.serverInteractor
-                    .send(request, proto.qmq.WebConfigDeleteEntityResponse)
-                    .then(response => {
-                        qInfo(`[delete-entity-modal::onDeleteButtonPressed] Delete entity response ${response}`);
-                    })
-                    .catch(error => {
-                        qError(`[delete-entity-modal::onDeleteButtonPressed] Failed to delete entity: ${error}`);
-                    });
+                this.database.deleteEntity(this.entityId);
             }
         },
         computed: {
             isDeleteDisabled() {
-                return this.entityId === "";
+                return this.entityId === "" || !this.isDatabaseConnected;
             }
         }
     })
