@@ -41,8 +41,8 @@ function registerCreateFieldModalComponent(app, context) {
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)));
+                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
                 fieldName: "",

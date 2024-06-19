@@ -34,10 +34,10 @@ function registerTreeNodeComponent(app, context) {
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)))
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this)))
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this)));
+                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
+                .addEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this))
+                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this));
 
             return {
                 localEntityId: this.entityId,
@@ -56,18 +56,18 @@ function registerTreeNodeComponent(app, context) {
                 if (this.localEntityId === "") {
                     this.database.queryRootEntityId();
                 } else {
-                    this.queryEntity(this.localEntityId);
+                    this.database.queryEntity(this.localEntityId);
                 }
             }
         },
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
-                
+
                 if (this.localEntityId === "") {
                     this.database.queryRootEntityId();
                 } else {
-                    this.queryEntity(this.localEntityId);
+                    this.database.queryEntity(this.localEntityId);
                 }
             },
 
@@ -78,6 +78,7 @@ function registerTreeNodeComponent(app, context) {
             onQueryRootEntityId(event) {
                 if (this.localEntityId === "") {
                     this.localEntityId = event.rootId;
+                    this.database.queryEntity(this.localEntityId);
                 }
             },
 

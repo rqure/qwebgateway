@@ -90,7 +90,7 @@ class DatabaseInteractor {
     }
 
     getAvailableFieldTypes() {
-        return Object.keys(proto.qmq).filter(type => !type.startsWith("Web"));
+        return Object.keys(proto.qmq).filter(type => !type.startsWith("Web") && !type.startsWith("Database"));
     }
 
     setMainLoopInterval(interval) {
@@ -121,7 +121,7 @@ class DatabaseInteractor {
         this._serverInteractor
             .send(new proto.qmq.WebRuntimeGetDatabaseConnectionStatusRequest(), proto.qmq.WebRuntimeGetDatabaseConnectionStatusResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qmq.ConnectionState.ConnectionStateEnum.CONNECTED) {
+                if (response.getStatus().getRaw() !== proto.qmq.ConnectionState.ConnectionStateEnum.CONNECTED) {
                     if(this._isConnected !== false) {
                         this._isConnected = false;
                         this._eventManager.dispatchEvent(DATABASE_EVENTS.DISCONNECTED, {});
