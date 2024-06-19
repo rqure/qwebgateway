@@ -2,17 +2,18 @@ function registerTreeNodeComponent(app, context) {
     return app.component("tree-node", {
         template: `
     <li class="list-group-item list-group-item-action">
-        <div @click="toggleExpand">
+        <div @click="onFocus">
             <span class="mr-5" v-if="!expandable"></span>
             <span class="badge text-bg-primary">{{localEntityType}}</span>
             {{localEntityName}}
-            <span class="badge text-bg-info" v-if="expandable">{{ expanded ? '-' : '+' }}</span>
+            <span class="badge text-bg-info" v-if="expandable" @click="toggleExpand">{{ expanded ? '-' : '+' }}</span>
         </div>
         <ul class="list-group list-group-flush" v-if="expanded">
             <tree-node
                 v-for="child in localEntityChildren" :entityId="child.getId()" />
         </ul>
     </li>`,
+
         props: {
             entityId: {
                 type: String,
@@ -31,6 +32,7 @@ function registerTreeNodeComponent(app, context) {
                 default: () => []
             }
         },
+
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
@@ -40,6 +42,7 @@ function registerTreeNodeComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this));
 
             return {
+                app: app,
                 localEntityId: this.entityId,
                 localEntityName: this.entityName,
                 localEntityType: this.entityType,
@@ -49,6 +52,7 @@ function registerTreeNodeComponent(app, context) {
                 isDatabaseConnected: false
             }
         },
+
         async created() {
             this.isDatabaseConnected = this.database.isConnected();
 
@@ -60,6 +64,7 @@ function registerTreeNodeComponent(app, context) {
                 }
             }
         },
+
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
@@ -92,8 +97,13 @@ function registerTreeNodeComponent(app, context) {
             
             toggleExpand() {
                 this.expanded = !this.expanded;
+            },
+
+            onFocus() {
+                this.app.$emit("focus-entity", this.localEntityId);
             }
         },
+
         computed: {
             expandable() {
                 return this.localEntityChildren.length > 0;
