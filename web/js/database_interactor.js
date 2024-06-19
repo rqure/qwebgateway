@@ -302,10 +302,10 @@ class DatabaseInteractor {
             });
     }
 
-    async restoreSnapshot() {
+    async restoreSnapshot(snapshot) {
         const me = this;
         const request = new proto.qmq.WebConfigRestoreSnapshotRequest();
-        request.setSnapshot((me.snapshot));
+        request.setSnapshot((snapshot));
         me._serverInteractor
             .send(request, proto.qmq.WebConfigRestoreSnapshotResponse)
             .then(response => {

@@ -21,13 +21,22 @@ function registerRestoreModalComponent(app, context) {
         data() {
             return {
                 snapshot: null,
-                serverInteractor: context.qConfigServerInteractor
+                database: context.qDatabaseInteractor,
+                isDatabaseConnected: false
             }
         },
         mounted() {
-
+            this.isDatabaseConnected = this.database.isConnected();
         },
         methods: {
+            onDatabaseConnected() {
+                this.isDatabaseConnected = true;
+            },
+
+            onDatabaseDisconnected() {
+                this.isDatabaseConnected = false;
+            },
+
             onCancelButtonPressed() {
                 this.snapshot = null;
             },
@@ -48,16 +57,7 @@ function registerRestoreModalComponent(app, context) {
 
             async onRestoreButtonPressed() {
                 const me = this;
-                const request = new proto.qmq.WebConfigRestoreSnapshotRequest();
-                request.setSnapshot((me.snapshot));
-                me.serverInteractor
-                    .send(request, proto.qmq.WebConfigRestoreSnapshotResponse)
-                    .then(response => {
-                        qInfo(`[restore-modal::onRestoreButtonPressed] Restore database response ${response.getStatus()}`);
-                    })
-                    .catch(error => {
-                        qError(`[restore-modal::onRestoreButtonPressed] Failed to restore database: ${error}`);
-                    });
+                me.database.restoreSnapshot(me.snapshot);
                 this.snapshot = null;
             }
         },
