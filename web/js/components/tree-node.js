@@ -37,16 +37,29 @@ function registerTreeNodeComponent(app, context) {
             }
         },
         data() {
+            context.qDatabaseInteractor
+                .getEventManager()
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this)));
+
             return {
                 localEntityId: this.entityId,
                 localEntityName: this.entityName,
                 localEntityType: this.entityType,
                 localEntityChildren: this.entityChildren,
                 expanded: false,
-                serverInteractor: context.qConfigServerInteractor
+                database: context.qDatabaseInteractor,
+                isDatabaseConnected: false
             }
         },
         async created() {
+            this.isDatabaseConnected = this.database.isConnected();
+
+            if (this.isDatabaseConnected) {
+
+            }
+
             const getChildren = (obj, children) => {
                 children.forEach(child => {
                     const childRequest = new proto.qmq.WebConfigGetEntityRequest();
@@ -136,6 +149,20 @@ function registerTreeNodeComponent(app, context) {
             }
         },
         methods: {
+            onDatabaseConnected() {
+                this.isDatabaseConnected = true;
+            },
+
+            onDatabaseDisconnected() {
+                this.isDatabaseConnected = false;
+            },
+
+            onQueryRootEntityId(event) {
+                if (this.localEntityId === "") {
+                    this.localEntityId = event.rootId;
+                }
+            },
+            
             toggleExpand() {
                 this.expanded = !this.expanded;
             }

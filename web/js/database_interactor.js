@@ -9,6 +9,7 @@ DATABASE_EVENTS = {
     QUERY_ALL_ENTITY_TYPES: "query_all_entity_types",
     QUERY_ENTITY_SCHEMA: "query_entity_schema",
     QUERY_ENTITY: "query_entity",
+    QUERY_ROOT_ENTITY_ID: "query_root_entity_id",
     CREATE_SNAPSHOT: "create_snapshot",
     RESTORE_SNAPSHOT: "restore_snapshot",
     NOTIFICATION: "notification",
@@ -318,6 +319,22 @@ class DatabaseInteractor {
             })
             .catch(error => {
                 qError(`[DatabaseInteractor::restoreSnapshot] Failed to restore database: ${error}`);
+            });
+    }
+
+    async queryRootEntityId() {
+        this._serverInteractor
+            .send(new proto.qmq.WebConfigGetRootRequest(), proto.qmq.WebConfigGetRootResponse)
+            .then(response => {
+                if (response.getRootid() === "") {
+                    qError("[DatabaseInteractor::getRootEntity] Could not complete the request: Root ID is empty");
+                    return;
+                }
+
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, {rootId: response.getRootid()});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::getRootEntity] Failed to get root entity: ${error}`);
             });
     }
 

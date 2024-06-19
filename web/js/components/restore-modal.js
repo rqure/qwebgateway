@@ -18,16 +18,24 @@ function registerRestoreModalComponent(app, context) {
         </div>
     </div>
 </div>`,
+
         data() {
+            context.qDatabaseInteractor
+                .getEventManager()
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)));
+
             return {
                 snapshot: null,
                 database: context.qDatabaseInteractor,
                 isDatabaseConnected: false
             }
         },
+
         mounted() {
             this.isDatabaseConnected = this.database.isConnected();
         },
+
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
@@ -61,6 +69,7 @@ function registerRestoreModalComponent(app, context) {
                 this.snapshot = null;
             }
         },
+        
         computed: {
             isRestoreDisabled() {
                 return this.snapshot === null;
