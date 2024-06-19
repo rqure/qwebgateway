@@ -10,12 +10,7 @@ function registerTreeNodeComponent(app, context) {
         </div>
         <ul class="list-group list-group-flush" v-if="expanded">
             <tree-node
-                v-for="child in localEntityChildren"
-                :key="child.entityId"
-                :entityName="child.entityName"
-                :entityType="child.entityType"
-                :entityId="child.entityId"
-                :entityChildren="child.entityChildren" />
+                v-for="child in localEntityChildren" :entityId="child.getId()" />
         </ul>
     </li>`,
         props: {
@@ -41,7 +36,8 @@ function registerTreeNodeComponent(app, context) {
                 .getEventManager()
                 .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this)))
                 .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this)))
-                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this)));
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this)))
+                .addEventListener(new DatabaseEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this)));
 
             return {
                 localEntityId: this.entityId,
@@ -57,100 +53,22 @@ function registerTreeNodeComponent(app, context) {
             this.isDatabaseConnected = this.database.isConnected();
 
             if (this.isDatabaseConnected) {
-
-            }
-
-            const getChildren = (obj, children) => {
-                children.forEach(child => {
-                    const childRequest = new proto.qmq.WebConfigGetEntityRequest();
-                    childRequest.setId(child.getId());
-
-                    this.serverInteractor
-                        .send(childRequest, proto.qmq.WebConfigGetEntityResponse)
-                        .then(childResponse => {
-                            qInfo(`[tree-node::created] Received get entity response: ${childResponse.getStatus()}`);
-                            if (childResponse.getStatus() !== proto.qmq.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
-                                return;
-                            }
-
-                            const childObj = {
-                                entityId: childResponse.getEntity().getId(),
-                                entityName: childResponse.getEntity().getName(),
-                                entityType: childResponse.getEntity().getType(),
-                                entityChildren: []
-                            };
-                            
-                            getChildren(childObj, childResponse.getEntity().getChildrenList())
-
-                            obj.localEntityChildren.push(childObj);
-                        });
-                });
-            };
-
-            const getEntity = (entityId) => {
-                const request = new proto.qmq.WebConfigGetEntityRequest();
-                request.setId(entityId);
-                this.serverInteractor
-                    .send(request, proto.qmq.WebConfigGetEntityResponse)
-                    .then(response => {
-                        qInfo(`[tree-node::mounted] Received get entity response: ${response.getStatus()}`);
-                        if (response.getStatus() !== proto.qmq.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
-                            return;
-                        }
-
-                        this.localEntityName = response.getEntity().getName();
-                        this.localEntityType = response.getEntity().getType();
-                        this.localEntityId = response.getEntity().getId();
-
-                        getChildren(this, response.getEntity().getChildrenList());
-                    })
-                    .catch(error => {
-                        qError(`[tree-node::mounted] Failed to get entity: ${error}`)
-                        this.localEntityName = "";
-                        this.localEntityType = "";
-                        this.localEntityId = "";
-                        this.localEntityChildren = [];
-
-                        if (error.message === "Connection closed" ) {
-                            qInfo("[tree-node::mounted] Retrying get entity request...")
-                            setTimeout(() => getEntity(entityId), 1000);
-                        }
-                    });
-            };
-
-            const getRoot = () => {
-                this.serverInteractor
-                    .send(new proto.qmq.WebConfigGetRootRequest(), proto.qmq.WebConfigGetRootResponse)
-                    .then(response => {
-                        if (response.getRootid() === "") {
-                            return;
-                        }
-
-                        getEntity(response.getRootid());
-                    })
-                    .catch(error => {
-                        qError(`[tree-node::mounted] Failed to get root: ${error}`)
-                        this.localEntityName = "";
-                        this.localEntityType = "";
-                        this.localEntityId = "";
-                        this.localEntityChildren = [];
-
-                        if (error.message === "Connection closed" ) {
-                            qInfo("[tree-node::mounted] Retrying get root request...")
-                            setTimeout(getRoot, 1000);
-                        }
-                    });
-            };
-
-            if (this.localEntityId === "") {
-                getRoot();
-            } else {
-                getEntity(this.localEntityId);
+                if (this.localEntityId === "") {
+                    this.database.queryRootEntityId();
+                } else {
+                    this.queryEntity(this.localEntityId);
+                }
             }
         },
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
+                
+                if (this.localEntityId === "") {
+                    this.database.queryRootEntityId();
+                } else {
+                    this.queryEntity(this.localEntityId);
+                }
             },
 
             onDatabaseDisconnected() {
@@ -160,6 +78,14 @@ function registerTreeNodeComponent(app, context) {
             onQueryRootEntityId(event) {
                 if (this.localEntityId === "") {
                     this.localEntityId = event.rootId;
+                }
+            },
+
+            onQueryEntity(event) {
+                if (this.localEntityId === event.entity.getId()) {
+                    this.localEntityName = event.entity.getName();
+                    this.localEntityType = event.entity.getType();
+                    this.localEntityChildren = event.entity.getChildrenList();
                 }
             },
             
