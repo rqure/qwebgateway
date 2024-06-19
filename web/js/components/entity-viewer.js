@@ -1,18 +1,9 @@
-function registerTreeNodeComponent(app, context) {
-    return app.component("tree-node", {
+function registerEntityViewerComponent(app, context) {
+    return app.component("entity-viewer", {
         template: `
-    <li class="list-group-item list-group-item-action">
-        <div @click="onFocus">
-            <span class="mr-5" v-if="!expandable"></span>
-            <span class="badge text-bg-primary">{{localEntityType}}</span>
-            {{localEntityName}}
-            <span class="badge text-bg-info" v-if="expandable" @click="toggleExpand">{{ expanded ? '-' : '+' }}</span>
-        </div>
-        <ul class="list-group list-group-flush" v-if="expanded">
-            <tree-node
-                v-for="child in localEntityChildren" :entityId="child.getId()" />
-        </ul>
-    </li>`,
+    <div v-if="entityId.length">
+
+    </div>`,
 
         data() {
             context.qDatabaseInteractor
