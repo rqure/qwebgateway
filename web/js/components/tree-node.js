@@ -39,10 +39,12 @@ function registerTreeNodeComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
                 .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
                 .addEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this));
+                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this))
+                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, this.onQueryEntitySchema.bind(this))
+                .addEventListener(DATABASE_EVENTS.READ, this.onRead.bind(this));
 
             return {
-                app: app,
+                selectedNode: context.selectedNode,
                 localEntityId: this.entityId,
                 localEntityName: this.entityName,
                 localEntityType: this.entityType,
@@ -53,7 +55,7 @@ function registerTreeNodeComponent(app, context) {
             }
         },
 
-        async created() {
+        created() {
             this.isDatabaseConnected = this.database.isConnected();
 
             if (this.isDatabaseConnected) {
@@ -94,13 +96,36 @@ function registerTreeNodeComponent(app, context) {
                     this.localEntityChildren = event.entity.getChildrenList();
                 }
             },
+
+            onQueryEntitySchema(event) {
+                if (this.localEntityType === event.schema.getName()) {
+                    this.selectedNode.entitySchema = event.schema;
+                    this.database.read(event.schema.getFieldsList().map(f => {
+                        return {
+                            id: this.selectedNode.entityId,
+                            field: f
+                        };
+                    }));
+                }
+            },
+
+            onRead(event) {
+                for (const r in event.result) {
+                    qDebug(`Read result: ${r}`)
+                }
+            },
             
             toggleExpand() {
                 this.expanded = !this.expanded;
             },
 
             onFocus() {
-                this.app.$emit("focus-entity", this.localEntityId);
+                this.selectedNode.entityId = this.localEntityId;
+                this.selectedNode.entityName = this.localEntityName;
+                this.selectedNode.entityType = this.localEntityType;
+                this.selectedNode.entityFields = {};
+
+                this.database.queryEntitySchema(this.localEntityType);
             }
         },
 

@@ -63,7 +63,7 @@ function registerRestoreModalComponent(app, context) {
                 reader.readAsArrayBuffer(file);
             },
 
-            async onRestoreButtonPressed() {
+            onRestoreButtonPressed() {
                 const me = this;
                 me.database.restoreSnapshot(me.snapshot);
                 this.snapshot = null;

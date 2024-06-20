@@ -59,7 +59,7 @@ function registerBackupModalComponent(app, context) {
                 this.blobUrl = "";
             },
 
-            async onBackupButtonClicked() {
+            onBackupButtonClicked() {
                 this.database.createSnapshot();
             }
         },

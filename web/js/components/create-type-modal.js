@@ -35,6 +35,7 @@ function registerCreateTypeModalComponent(app, context) {
         </div>
     </div>
 </div>`,
+
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
@@ -53,7 +54,8 @@ function registerCreateTypeModalComponent(app, context) {
                 isDatabaseConnected: false
             }
         },
-        async mounted() {
+
+        mounted() {
             this.isDatabaseConnected = this.database.isConnected();
 
             if (this.isDatabaseConnected) {
@@ -61,6 +63,7 @@ function registerCreateTypeModalComponent(app, context) {
                 this.database.queryAllFields();
             }
         },
+
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
@@ -97,7 +100,7 @@ function registerCreateTypeModalComponent(app, context) {
                 this.entityFields = this.entityFields.filter(f => f !== field);
             },
 
-            async onEntityTypeChange() {
+            onEntityTypeChange() {
                 if (!this.allEntityTypes.includes(this.entityType)) {
                     this.entityFields = [];
                     return;
@@ -106,12 +109,12 @@ function registerCreateTypeModalComponent(app, context) {
                 this.database.queryEntitySchema(this.entityType);
             },
 
-            async onCancelButtonPressed() {
+            onCancelButtonPressed() {
                 this.entityType = "";
                 this.entityFields = [];
             },
 
-            async onCreateButtonPressed() {
+            onCreateButtonPressed() {
                 const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
                 request.setName(this.entityType);
                 request.setFieldsList(this.entityFields);

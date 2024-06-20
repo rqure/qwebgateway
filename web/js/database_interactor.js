@@ -142,7 +142,7 @@ class DatabaseInteractor {
         }, this._mainLoopInterval);
     }
 
-    async createEntity(parentId, entityName, entityType) {
+    createEntity(parentId, entityName, entityType) {
         const me = this;
         const request = new proto.qmq.WebConfigCreateEntityRequest();
         request.setParentid(parentId);
@@ -164,7 +164,7 @@ class DatabaseInteractor {
             })
     }
 
-    async queryEntity(entityId) {
+    queryEntity(entityId) {
         const request = new proto.qmq.WebConfigGetEntityRequest();
         request.setId(entityId);
         this._serverInteractor
@@ -182,7 +182,7 @@ class DatabaseInteractor {
             });
     }
 
-    async queryEntitySchema(entityType) {
+    queryEntitySchema(entityType) {
         const request = new proto.qmq.WebConfigGetEntitySchemaRequest();
         request.setType(entityType);
 
@@ -201,7 +201,7 @@ class DatabaseInteractor {
             });
     }
 
-    async queryAllFields() {
+    queryAllFields() {
         this._serverInteractor
             .send(new proto.qmq.WebConfigGetAllFieldsRequest(), proto.qmq.WebConfigGetAllFieldsResponse)
             .then(response => {
@@ -212,7 +212,7 @@ class DatabaseInteractor {
             });
     }
 
-    async queryAllEntityTypes() {
+    queryAllEntityTypes() {
         this._serverInteractor
             .send(new proto.qmq.WebConfigGetEntityTypesRequest(), proto.qmq.WebConfigGetEntityTypesResponse)
             .then(response => {
@@ -223,7 +223,7 @@ class DatabaseInteractor {
             });
     }
 
-    async deleteEntity(entityId) {
+    deleteEntity(entityId) {
         const me = this;
         const request = new proto.qmq.WebConfigDeleteEntityRequest();
         request.setId(entityId);
@@ -243,7 +243,7 @@ class DatabaseInteractor {
             });
     }
 
-    async createOrUpdateEntityType(entityType, entityFields) {
+    createOrUpdateEntityType(entityType, entityFields) {
         const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
         request.setName(entityType);
         request.setFieldsList(entityFields);
@@ -262,7 +262,7 @@ class DatabaseInteractor {
             });
     }
 
-    async createField(fieldName, fieldType) {
+    createField(fieldName, fieldType) {
         const request = new proto.qmq.WebConfigSetFieldSchemaRequest();
         request.setField( fieldName );
 
@@ -284,7 +284,7 @@ class DatabaseInteractor {
             });
     }
 
-    async createSnapshot() {
+    createSnapshot() {
         const me = this;
         const request = new proto.qmq.WebConfigCreateSnapshotRequest();
 
@@ -303,7 +303,7 @@ class DatabaseInteractor {
             });
     }
 
-    async restoreSnapshot(snapshot) {
+    restoreSnapshot(snapshot) {
         const me = this;
         const request = new proto.qmq.WebConfigRestoreSnapshotRequest();
         request.setSnapshot((snapshot));
@@ -322,7 +322,7 @@ class DatabaseInteractor {
             });
     }
 
-    async queryRootEntityId() {
+    queryRootEntityId() {
         this._serverInteractor
             .send(new proto.qmq.WebConfigGetRootRequest(), proto.qmq.WebConfigGetRootResponse)
             .then(response => {
@@ -338,11 +338,35 @@ class DatabaseInteractor {
             });
     }
 
-    async registerNotification() {
+    registerNotification() {
 
     }
 
-    async unregisterNotification() {
+    unregisterNotification() {
 
+    }
+
+    read(dbRequest) {
+        const request = new proto.qmq.WebRuntimeDatabaseRequest();
+        request.setRequesttype(proto.qmq.WebRuntimeDatabaseRequest.RequestTypeEnum.READ);
+        request.setRequestsList(dbRequest.map(r => {
+            const dr = new proto.qmq.DatabaseRequest();
+
+            dr.setId(r.id);
+            dr.setField(r.field);
+
+            return dr;
+        }));
+
+        this._serverInteractor
+            .send(request, proto.qmq.WebRuntimeDatabaseResponse)
+            .then(response => {
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.READ_RESULT, {result:
+                    response.getResponseList().map(r => r.toObject())
+                });
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::read] Failed to read entity: ${error}`);
+            }); 
     }
 }

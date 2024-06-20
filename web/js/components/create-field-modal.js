@@ -53,7 +53,7 @@ function registerCreateFieldModalComponent(app, context) {
             }
         },
 
-        async mounted() {
+        mounted() {
             this.isDatabaseConnected = this.database.isConnected();
         },
 
@@ -66,17 +66,17 @@ function registerCreateFieldModalComponent(app, context) {
                 this.isDatabaseConnected = false;
             },
 
-            async onCancelButtonPressed() {
+            onCancelButtonPressed() {
                 const me = this;
                 me.fieldName = "";
                 me.selectedFieldType = "";
             },
 
-            async onCreateButtonPressed() {
-                this.database.createField(me.fieldName, me.selectedFieldType);
+            onCreateButtonPressed() {
+                this.database.createField(this.fieldName, this.selectedFieldType);
             },
 
-            async onTypeSelect(fieldType) {
+            onTypeSelect(fieldType) {
                 const me = this;
                 me.selectedFieldType = fieldType;
             }

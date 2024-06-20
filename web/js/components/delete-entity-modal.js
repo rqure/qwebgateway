@@ -21,6 +21,7 @@ function registerDeleteEntityModalComponent(app, context) {
         </div>
     </div>
 </div>`,
+
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
@@ -52,10 +53,11 @@ function registerDeleteEntityModalComponent(app, context) {
                 me.entityId = "";
             },
 
-            async onDeleteButtonPressed() {
+            onDeleteButtonPressed() {
                 this.database.deleteEntity(this.entityId);
             }
         },
+
         computed: {
             isDeleteDisabled() {
                 return this.entityId === "" || !this.isDatabaseConnected;

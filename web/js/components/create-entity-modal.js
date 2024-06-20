@@ -49,7 +49,7 @@ function registerCreateEntityModalComponent(app, context) {
             }
         },
         
-        async mounted() {
+        mounted() {
             this.database.queryAllEntityTypes();
 
             this.isDatabaseConnected = this.database.isConnected();
@@ -71,7 +71,7 @@ function registerCreateEntityModalComponent(app, context) {
                 this.availableEntityTypes = event.entityTypes;
             },
 
-            async onCreateButtonPressed() {
+            onCreateButtonPressed() {
                 const me = this;
                 this.database.createEntity(me.parentId, me.entityName, me.entityType);
                 
@@ -80,7 +80,7 @@ function registerCreateEntityModalComponent(app, context) {
                 me.parentId = "";
             },
 
-            async onCancelButtonPressed() {
+            onCancelButtonPressed() {
                 const me = this;
 
                 me.entityName = "";

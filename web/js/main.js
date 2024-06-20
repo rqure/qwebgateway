@@ -2,7 +2,14 @@ async function main() {
     const app = Vue.createApp({});
     
     const context = {
-        qDatabaseInteractor: new DatabaseInteractor()
+        qDatabaseInteractor: new DatabaseInteractor(),
+        selectedNode: Vue.reactive({
+            entityId: "",
+            entityName: "",
+            entityType: "",
+            entitySchema: null,
+            entityFields: {},
+        })
     };
 
     registerBackupModalComponent(app, context);
