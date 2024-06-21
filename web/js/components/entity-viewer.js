@@ -5,19 +5,25 @@ function registerEntityViewerComponent(app, context) {
     <div class="row mt-3 mb-3">
         <label class="col-sm-2 col-form-label">Type</label>
         <div class="col-sm-10">
-            <input type="text" class="form-control" v-model="selectedNode.entityType">
+            <input type="text" class="form-control" v-model="selectedNode.entityType" readonly>
         </div>
     </div>
     <div class="row mb-3">
         <label class="col-sm-2 col-form-label">Id</label>
         <div class="col-sm-10">
-            <input type="text" class="form-control" v-model="selectedNode.entityId">
+            <input type="text" class="form-control" v-model="selectedNode.entityId" readonly>
         </div>
     </div>
     <div class="row mb-3">
         <label class="col-sm-2 col-form-label">Name</label>
         <div class="col-sm-10">
-            <input type="text" class="form-control" v-model="selectedNode.entityName">
+            <input type="text" class="form-control" v-model="selectedNode.entityName" readonly>
+        </div>
+    </div>
+    <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="row mb-3">
+        <label class="col-sm-2 col-form-label">{{name}}</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control">
         </div>
     </div>
 </div>`,
