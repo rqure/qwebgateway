@@ -82,6 +82,14 @@ function registerEntityViewerComponent(app, context) {
             onDatabaseDisconnected() {
                 this.isDatabaseConnected = false;
             },
+
+            isEnum(typeName) {
+                return typeName.startsWith("qmq.Enum");
+            },
+
+            enumChoices(typeName) {
+                return context.qDatabaseInteractor.getEnumChoices(typeName);
+            }
         },
 
         computed: {
