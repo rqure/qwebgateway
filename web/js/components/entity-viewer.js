@@ -83,6 +83,7 @@ function registerEntityViewerComponent(app, context) {
                 this.isDatabaseConnected = false;
             },
 
+            // TODO
             isEnum(typeName) {
                 return typeName.startsWith("qmq.Enum");
             },
