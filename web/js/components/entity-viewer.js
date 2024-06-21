@@ -22,7 +22,36 @@ function registerEntityViewerComponent(app, context) {
     </div>
     <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="row mb-3">
         <label class="col-sm-2 col-form-label">{{name}}</label>
-        <div class="col-sm-6">
+        <div v-if="field.typeName === 'qmq.Bool'" class="col-sm-6">
+            <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
+            <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`">
+                <option value="false">False</option>
+                <option value="true">True</option>  
+            </select>
+        </div>
+        <div v-if="field.typeName === 'qmq.Int'" class="col-sm-6">
+            <input type="number" class="form-control" v-model="field.value">
+        </div>
+        <div v-if="field.typeName === 'qmq.Float'" class="col-sm-6">
+            <input type="number" class="form-control" v-model="field.value">
+        </div>
+        <div v-if="field.typeName === 'qmq.String'" class="col-sm-6">
+            <input type="text" class="form-control" v-model="field.value">
+        </div>
+        <div v-if="field.typeName === 'qmq.Timestamp'" class="col-sm-6">
+            <input type="datetime-local" class="form-control" v-model="field.value">
+        </div>
+        <div v-if="field.typeName === 'qmq.BinaryFile'" class="col-sm-6">
+            <input type="file" class="form-control" v-model="field.value">
+        </div>
+        <div v-if="field.typeName === 'qmq.EntityReference'" class="col-sm-6">
+            <input type="text" class="form-control" v-model="field.value">
+        </div>
+        <div v-if="isEnum(field.typeName)" class="col-sm-6">
+            <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
+            <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`">
+                <option v-for="(choiceValue, choiceName) for enumChoices(field.typeName)" :value="choiceValue">{{choiceName}}</option>
+            </select>
         </div>
         <label class="col-sm-4 col-form-label">{{field.writeTime}}</label>
     </div>

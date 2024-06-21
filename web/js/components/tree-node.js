@@ -113,7 +113,8 @@ function registerTreeNodeComponent(app, context) {
                 for (const result of results) {
                     const protoClass = result.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
                     this.selectedNode.entityFields[result.getField()] = {
-                        value: protoClass.deserializeBinary(result.getValue().getValue_asU8()),
+                        value: protoClass.deserializeBinary(result.getValue().getValue_asU8()).getRaw(),
+                        typeClass: protoClass,
                         typeName: result.getValue().getTypeName(),
                         writeTime: result.getWritetime().getRaw().toDate().toLocaleString( 'en-CA', {
                             timeZoneName:'longOffset',
