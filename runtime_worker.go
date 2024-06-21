@@ -103,9 +103,11 @@ func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qmq.IWebClient, msg *qmq
 	if request.RequestType == qmq.WebRuntimeDatabaseRequest_READ {
 		qmq.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Read request: %v", request.Requests)
 		w.db.Read(request.Requests)
+		response.Response = request.Requests
 	} else if request.RequestType == qmq.WebRuntimeDatabaseRequest_WRITE {
 		qmq.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Write request: %v", request.Requests)
 		w.db.Write(request.Requests)
+		response.Response = request.Requests
 	} else {
 		qmq.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Unknown request type.", request)
 	}

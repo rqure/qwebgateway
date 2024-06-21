@@ -1,9 +1,26 @@
 function registerEntityViewerComponent(app, context) {
     return app.component("entity-viewer", {
         template: `
-    <div v-if="entityId.length">
-
-    </div>`,
+<div v-if="selectedNode.entityId.length" class="container-fluid border border-secondary rounded fill-v">
+    <div class="row mt-3 mb-3">
+        <label class="col-sm-2 col-form-label">Type</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" v-model="selectedNode.entityType">
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label class="col-sm-2 col-form-label">Id</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" v-model="selectedNode.entityId">
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label class="col-sm-2 col-form-label">Name</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" v-model="selectedNode.entityName">
+        </div>
+    </div>
+</div>`,
 
         data() {
             context.qDatabaseInteractor

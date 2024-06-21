@@ -41,7 +41,7 @@ function registerTreeNodeComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this))
                 .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this))
                 .addEventListener(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, this.onQueryEntitySchema.bind(this))
-                .addEventListener(DATABASE_EVENTS.READ, this.onRead.bind(this));
+                .addEventListener(DATABASE_EVENTS.READ_RESULT, this.onRead.bind(this));
 
             return {
                 selectedNode: context.selectedNode,
@@ -109,9 +109,9 @@ function registerTreeNodeComponent(app, context) {
                 }
             },
 
-            onRead(event) {
-                for (const r in event.result) {
-                    qDebug(`Read result: ${r}`)
+            onRead(results) {
+                for (const result of results) {
+                    this.selectedNode.entityFields[result.getName()] = result;
                 }
             },
             

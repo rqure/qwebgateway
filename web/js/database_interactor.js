@@ -361,9 +361,7 @@ class DatabaseInteractor {
         this._serverInteractor
             .send(request, proto.qmq.WebRuntimeDatabaseResponse)
             .then(response => {
-                this._eventManager.dispatchEvent(DATABASE_EVENTS.READ_RESULT, {result:
-                    response.getResponseList().map(r => r.toObject())
-                });
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.READ_RESULT, response.getResponseList());
             })
             .catch(error => {
                 qError(`[DatabaseInteractor::read] Failed to read entity: ${error}`);

@@ -19,6 +19,7 @@ async function main() {
     registerDeleteEntityModalComponent(app, context);
     registerRestoreModalComponent(app, context);
     registerTreeNodeComponent(app, context);
+    registerEntityViewerComponent(app, context);
 
     app.mount('#desktop');
 
