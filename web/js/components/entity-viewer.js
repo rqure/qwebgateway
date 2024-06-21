@@ -22,9 +22,9 @@ function registerEntityViewerComponent(app, context) {
     </div>
     <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="row mb-3">
         <label class="col-sm-2 col-form-label">{{name}}</label>
-        <div class="col-sm-10">
-            <input type="text" class="form-control">
+        <div class="col-sm-6">
         </div>
+        <label class="col-sm-4 col-form-label">{{field.writeTime}}</label>
     </div>
 </div>`,
 
