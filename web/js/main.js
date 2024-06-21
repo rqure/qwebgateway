@@ -24,4 +24,6 @@ async function main() {
     app.mount('#desktop');
 
     context.qDatabaseInteractor.runInBackground(true);
+
+    CURRENT_LOG_LEVEL=LOG_LEVELS.DEBUG;
 }

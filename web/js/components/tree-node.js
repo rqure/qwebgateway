@@ -110,17 +110,9 @@ function registerTreeNodeComponent(app, context) {
             },
 
             onRead(results) {
-                const fromDotNotation = (dotNotation, value) => {
-                    const ret = {};
-                    dotNotation.split('.').reduce((prev, key, i, self) => {
-                        return prev[key] = (i === self.length - 1) ? value : prev[key] || {};
-                    }, ret);
-                    
-                    return ret;
-                }
-
                 for (const result of results) {
-                    this.selectedNode.entityFields[result.getName()] = fromDotNotation(result.getValue().getTypeName(), proto)?.deserializeBinary(result.getValue().getValue_asU8());
+                    const protoClass = result.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
+                    this.selectedNode.entityFields[result.getField()] = protoClass.deserializeBinary(result.getValue().getValue_asU8());
                 }
             },
             
