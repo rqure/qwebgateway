@@ -355,7 +355,7 @@ class DatabaseInteractor {
             });
     }
 
-    registerNotification(nRequests, responseIdentifier) {
+    registerNotifications(nRequests, responseIdentifier) {
         const request = new proto.qmq.WebRuntimeRegisterNotificationRequest();
         request.setRequestsList(nRequests.map(r => {
             const nr = new proto.qmq.DatabaseNotificationConfig();
@@ -367,7 +367,7 @@ class DatabaseInteractor {
             }
 
             nr.setField(r.field);
-            nr.setContext(r.context);
+            nr.setContext(r.context || []);
             nr.setNotifyonchange(r.notifyOnChange === true);
 
             return nr;
@@ -391,7 +391,7 @@ class DatabaseInteractor {
             });
     }
 
-    unregisterNotification(tokens) {
+    unregisterNotifications(tokens) {
         const request = new proto.qmq.WebRuntimeUnregisterNotificationRequest();
         request.setTokensList(tokens);
 

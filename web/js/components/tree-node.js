@@ -41,7 +41,9 @@ function registerTreeNodeComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this))
                 .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this))
                 .addEventListener(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, this.onQueryEntitySchema.bind(this))
-                .addEventListener(DATABASE_EVENTS.READ_RESULT, this.onRead.bind(this));
+                .addEventListener(DATABASE_EVENTS.READ_RESULT, this.onRead.bind(this))
+                .addEventListener(DATABASE_EVENTS.REGISTER_NOTIFICATION_RESPONSE, this.onRegisterNotification.bind(this))
+                .addEventListener(DATABASE_EVENTS.NOTIFICATION, this.onNotification.bind(this));
 
             return {
                 selectedNode: context.selectedNode,
@@ -106,6 +108,18 @@ function registerTreeNodeComponent(app, context) {
                             field: f
                         };
                     }));
+
+                    if (this.selectedNode.notificationTokens.length > 0) {
+                        this.database.unregisterNotifications(this.selectedNode.notificationTokens);
+                        this.selectedNode.notificationTokens = [];
+                    }
+
+                    this.database.registerNotifications(event.schema.getFieldsList().map(f => {
+                        return {
+                            id: this.selectedNode.entityId,
+                            field: f
+                        };
+                    }), this.selectedNode.entityId);
                 }
             },
 
@@ -150,6 +164,44 @@ function registerTreeNodeComponent(app, context) {
                 this.selectedNode.entityFields = {};
 
                 this.database.queryEntitySchema(this.localEntityType);
+            },
+
+            onRegisterNotification(event) {
+                if (this.selectedNode.entityId !== event.responseIdentifier) {
+                    return;
+                }
+
+                if (this.selectedNode.notificationTokens.length > 0) {
+                    this.database.unregisterNotifications(this.selectedNode.notificationTokens);
+                }
+
+                this.selectedNode.notificationTokens = event.tokens;
+            },
+
+            onNotification(event) {
+                const field = event.notification.getCurrent();
+
+                if (this.selectedNode.entityId !== field.getId()) {
+                    qWarn(`[tree-node::onNotification] Received notification for entity ${event.notification.getCurrent().getId()} but selected entity is ${this.selectedNode.entityId}`);
+                    return;
+                }
+                
+                const protoClass = field.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
+                this.selectedNode.entityFields[field.getName()] = {
+                    value: protoClass.deserializeBinary(field.getValue().getValue_asU8()).getRaw(),
+                    typeClass: protoClass,
+                    typeName: field.getValue().getTypeName(),
+                    writeTime: field.getWritetime().getRaw().toDate().toLocaleString( 'en-CA', {
+                        timeZoneName:'longOffset',
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        second: 'numeric',
+                        fractionalSecondDigits: 3
+                    } )
+                };
             }
         },
 
