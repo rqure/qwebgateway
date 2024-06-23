@@ -1,19 +1,20 @@
 DATABASE_EVENTS = {
     CONNECTED: "connected",
+    CREATE_SNAPSHOT: "create_snapshot",
     DISCONNECTED: "disconnected",
     ENTITY_CREATED: "entity_created",
     ENTITY_DELETED: "entity_deleted",
-    FIELD_CREATED: "field_created",
     ENTITY_TYPE_CREATED: "entity_type_created",
-    QUERY_ALL_FIELDS: "query_all_fields",
+    FIELD_CREATED: "field_created",
+    NOTIFICATION: "notification",
     QUERY_ALL_ENTITY_TYPES: "query_all_entity_types",
+    QUERY_ALL_FIELDS: "query_all_fields",
     QUERY_ENTITY_SCHEMA: "query_entity_schema",
     QUERY_ENTITY: "query_entity",
     QUERY_ROOT_ENTITY_ID: "query_root_entity_id",
-    CREATE_SNAPSHOT: "create_snapshot",
+    READ_RESULT: "read_result",
+    REGISTER_NOTIFICATION_RESPONSE: "register_notification_response",
     RESTORE_SNAPSHOT: "restore_snapshot",
-    NOTIFICATION: "notification",
-    READ_RESULT: "read_result"
 }
 
 class DatabaseEventListener {
@@ -338,12 +339,70 @@ class DatabaseInteractor {
             });
     }
 
-    registerNotification() {
-
+    processNotifications() {
+        this._serverInteractor
+            .send(new proto.qmq.WebRuntimeGetNotificationsRequest(), proto.qmq.WebRuntimeGetNotificationsResponse)
+            .then(response => {
+                response.getNotificationsList().forEach(notification => {
+                    this._eventManager.dispatchEvent(DATABASE_EVENTS.NOTIFICATION, {notification: notification});
+                });
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::processNotifications] Failed to get notifications: ${error}`);
+            });
     }
 
-    unregisterNotification() {
+    registerNotification(nRequests, responseIdentifier) {
+        const request = new proto.qmq.WebRuntimeRegisterNotificationRequest();
+        request.setRequestsList(nRequests.map(r => {
+            const nr = new proto.qmq.DatabaseNotificationConfig();
+            if (r.id) {
+                nr.setId(r.id);
+            }
+            if (r.type) {
+                nr.setType(r.type);
+            }
 
+            nr.setField(r.field);
+            nr.setContext(r.context);
+            nr.setNotifyonchange(r.notifyOnChange === true);
+
+            return nr;
+        }));
+
+        this._serverInteractor
+            .send(request, proto.qmq.WebRuntimeRegisterNotificationResponse)
+            .then(response => {
+                if (response.getTokensList().length === 0) {
+                    qError(`[DatabaseInteractor::registerNotification] Could not complete the request: No tokens returned`);
+                    return;
+                }
+
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.REGISTER_NOTIFICATION_RESPONSE, {
+                    tokens: response.getTokensList(),
+                    responseIdentifier: responseIdentifier
+                });
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::registerNotification] Failed to register notification: ${error}`);
+            });
+    }
+
+    unregisterNotification(tokens) {
+        const request = new proto.qmq.WebRuntimeUnregisterNotificationRequest();
+        request.setTokensList(tokens);
+
+        this._serverInteractor
+            .send(request, proto.qmq.WebRuntimeUnregisterNotificationResponse)
+            .then(response => {
+                if (response.getStatus() !== proto.qmq.WebRuntimeUnregisterNotificationResponse.StatusEnum.SUCCESS) {
+                    qError(`[DatabaseInteractor::unregisterNotification] Could not complete the request: ${response.getStatus()}`);
+                    return;
+                }
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::unregisterNotification] Failed to unregister notification: ${error}`);
+            });
     }
 
     read(dbRequest) {
