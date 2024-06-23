@@ -15,6 +15,7 @@ DATABASE_EVENTS = {
     READ_RESULT: "read_result",
     REGISTER_NOTIFICATION_RESPONSE: "register_notification_response",
     RESTORE_SNAPSHOT: "restore_snapshot",
+    WRITE_RESULT: "write_result"
 }
 
 class DatabaseEventListener {
@@ -137,6 +138,8 @@ class DatabaseInteractor {
             .catch(error => {
                 qError(`[DatabaseInteractor::mainLoop] Failed to get database connection status: ${error}`);
             });
+        
+        this.processNotifications();
 
         setTimeout(() => {
             this.mainLoop();
@@ -425,5 +428,28 @@ class DatabaseInteractor {
             .catch(error => {
                 qError(`[DatabaseInteractor::read] Failed to read entity: ${error}`);
             }); 
+    }
+
+    write(dbRequest) {
+        const request = new proto.qmq.WebRuntimeDatabaseRequest();
+        request.setRequesttype(proto.qmq.WebRuntimeDatabaseRequest.RequestTypeEnum.WRITE);
+        request.setRequestsList(dbRequest.map(r => {
+            const dr = new proto.qmq.DatabaseRequest();
+
+            dr.setId(r.id);
+            dr.setField(r.field);
+            dr.setValue(r.value);
+
+            return dr;
+        }));
+
+        this._serverInteractor
+            .send(request, proto.qmq.WebRuntimeDatabaseResponse)
+            .then(response => {
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.WRITE_RESULT, response.getResponseList());
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::write] Failed to write entity: ${error}`);
+            });
     }
 }

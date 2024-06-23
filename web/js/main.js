@@ -9,6 +9,7 @@ async function main() {
             entityType: "",
             entitySchema: null,
             entityFields: {},
+            notificationTokens: [],
         })
     };
 
