@@ -111,22 +111,31 @@ function registerTreeNodeComponent(app, context) {
 
             onRead(results) {
                 for (const result of results) {
-                    const protoClass = result.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
-                    this.selectedNode.entityFields[result.getField()] = {
-                        value: protoClass.deserializeBinary(result.getValue().getValue_asU8()).getRaw(),
-                        typeClass: protoClass,
-                        typeName: result.getValue().getTypeName(),
-                        writeTime: result.getWritetime().getRaw().toDate().toLocaleString( 'en-CA', {
-                            timeZoneName:'longOffset',
-                            year: 'numeric',
-                            month: 'numeric',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: 'numeric',
-                            second: 'numeric',
-                            fractionalSecondDigits: 3
-                        } )
-                    };
+                    try {
+                        if (!result.getSuccess()) {
+                            continue;
+                        }
+    
+                        const protoClass = result.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
+                        this.selectedNode.entityFields[result.getField()] = {
+                            value: protoClass.deserializeBinary(result.getValue().getValue_asU8()).getRaw(),
+                            typeClass: protoClass,
+                            typeName: result.getValue().getTypeName(),
+                            writeTime: result.getWritetime().getRaw().toDate().toLocaleString( 'en-CA', {
+                                timeZoneName:'longOffset',
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: 'numeric',
+                                second: 'numeric',
+                                fractionalSecondDigits: 3
+                            } )
+                        };
+                    } catch (e) {
+                        qError(`[tree-node::onRead] Failed to process read response: ${e}`);
+                        continue;
+                    }
                 }
             },
             

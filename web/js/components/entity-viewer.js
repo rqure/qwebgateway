@@ -42,15 +42,15 @@ function registerEntityViewerComponent(app, context) {
             <input type="datetime-local" class="form-control" v-model="field.value">
         </div>
         <div v-if="field.typeName === 'qmq.BinaryFile'" class="col-sm-6">
-            <input type="file" class="form-control" v-model="field.value">
+            <input type="file" class="form-control" @change="onFileSelected(event, field)">
         </div>
         <div v-if="field.typeName === 'qmq.EntityReference'" class="col-sm-6">
             <input type="text" class="form-control" v-model="field.value">
         </div>
-        <div v-if="isEnum(field.typeName)" class="col-sm-6">
+        <div v-if="isEnum(field.typeClass)" class="col-sm-6">
             <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
             <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`">
-                <option v-for="(choiceValue, choiceName) for enumChoices(field.typeName)" :value="choiceValue">{{choiceName}}</option>
+                <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" :value="choiceValue">{{choiceName}}</option>
             </select>
         </div>
         <label class="col-sm-4 col-form-label">{{field.writeTime}}</label>
@@ -83,13 +83,38 @@ function registerEntityViewerComponent(app, context) {
                 this.isDatabaseConnected = false;
             },
 
-            // TODO
-            isEnum(typeName) {
-                return typeName.startsWith("qmq.Enum");
+            isEnum(typeClass) {
+                for (let key in typeClass) {
+                    if (key.endsWith("Enum")) {
+                        return true;
+                    }
+                }
+
+                return false;
             },
 
-            enumChoices(typeName) {
-                return context.qDatabaseInteractor.getEnumChoices(typeName);
+            enumChoices(typeClass) {
+                for (let key in typeClass) {
+                    if (key.endsWith("Enum")) {
+                        return typeClass[key];
+                    }
+                }
+
+                return {};
+            },
+
+            onFileSelected(event, field) {
+                const me = this;
+                const file = event.target.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    field.value = new Uint8Array(e.target.result);
+                };
+                reader.readAsArrayBuffer(file);
             }
         },
 
