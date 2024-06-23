@@ -103,6 +103,9 @@ function registerEntityViewerComponent(app, context) {
                 return {};
             },
 
+            onFieldChanged(field) {
+            },
+
             onFileSelected(event, field) {
                 const me = this;
                 const file = event.target.files[0];
