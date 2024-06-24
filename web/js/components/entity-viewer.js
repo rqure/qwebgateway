@@ -3,25 +3,25 @@ function registerEntityViewerComponent(app, context) {
         template: `
 <div v-if="selectedNode.entityId.length" class="container-fluid border border-secondary rounded fill-v">
     <div class="row mt-3 mb-3">
-        <label class="col-sm-2 col-form-label">Type</label>
-        <div class="col-sm-10">
+        <label class="col-sm-3 col-form-label">Type</label>
+        <div class="col-sm-9">
             <input type="text" class="form-control" v-model="selectedNode.entityType" readonly>
         </div>
     </div>
     <div class="row mb-3">
-        <label class="col-sm-2 col-form-label">Id</label>
-        <div class="col-sm-10">
+        <label class="col-sm-3 col-form-label">Id</label>
+        <div class="col-sm-9">
             <input type="text" class="form-control" v-model="selectedNode.entityId" readonly>
         </div>
     </div>
     <div class="row mb-3">
-        <label class="col-sm-2 col-form-label">Name</label>
-        <div class="col-sm-10">
+        <label class="col-sm-3 col-form-label">Name</label>
+        <div class="col-sm-9">
             <input type="text" class="form-control" v-model="selectedNode.entityName" readonly>
         </div>
     </div>
     <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="row mb-3">
-        <label class="col-sm-2 col-form-label">{{name}}</label>
+        <label class="col-sm-3 col-form-label">{{name}}</label>
         <div v-if="field.typeName === 'qmq.Bool'" class="col-sm-6">
             <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
             <select class="form-select" v-model="field.value" @change=onBoolFieldChange(field) :id="\`\${selectedNode.entityId}-\${name}\`">
@@ -42,7 +42,10 @@ function registerEntityViewerComponent(app, context) {
             <input type="datetime-local" class="form-control" v-model="field.value" @change="onTimestampFieldChanged(field)">
         </div>
         <div v-if="field.typeName === 'qmq.BinaryFile'" class="col-sm-6">
-            <input type="file" class="form-control" @change="onFileSelected(event, field)">
+            <div class="input-group">
+                <input type="file" class="form-control" @change="onFileSelected($event, field)">
+                <button class="btn btn-outline-secondary" type="button" :disabled="!field.blobUrl"><a :href="field.blobUrl" download="data.bin">Download</a></button>
+            </div>
         </div>
         <div v-if="field.typeName === 'qmq.EntityReference'" class="col-sm-6">
             <input type="text" class="form-control" v-model="field.value" @change="onEntityReferenceChanged(field)">
@@ -53,7 +56,7 @@ function registerEntityViewerComponent(app, context) {
                 <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" :value="choiceValue">{{choiceName}}</option>
             </select>
         </div>
-        <label class="col-sm-4 col-form-label">{{field.writeTime}}</label>
+        <label class="col-sm-3 col-form-label">{{field.writeTime}}</label>
     </div>
 </div>`,
 
@@ -225,12 +228,35 @@ function registerEntityViewerComponent(app, context) {
                     return;
                 }
 
+                async function bufferToBase64(buffer) {
+                    // use a FileReader to generate a base64 data URI:
+                    const base64url = await new Promise(r => {
+                      const reader = new FileReader()
+                      reader.onload = () => r(reader.result)
+                      reader.readAsDataURL(new Blob([buffer]))
+                    });
+                    // remove the `data:...;base64,` part from the start
+                    return base64url.slice(base64url.indexOf(',') + 1);
+                  }
+
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    field.value = new Uint8Array(e.target.result);
+                reader.onload = async function(e) {
+                    field.value = await bufferToBase64(new Uint8Array(e.target.result));
+                    const value = new proto.qmq.BinaryFile();
+                    value.setRaw(field.value);
+                    const valueAsAny = new proto.google.protobuf.Any();
+                    valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                    me.database.write([
+                        {
+                            id: me.selectedNode.entityId,
+                            field: field.name,
+                            value: valueAsAny
+                        }
+                    ]);
                 };
                 reader.readAsArrayBuffer(file);
-            }
+            },
         },
 
         computed: {
