@@ -1,7 +1,7 @@
 function registerEntityViewerComponent(app, context) {
     return app.component("entity-viewer", {
         template: `
-<div v-if="selectedNode.entityId.length" class="container-fluid border border-secondary rounded fill-v">
+<div v-if="selectedNode.entityId.length" class="container-fluid border border-secondary rounded fill-v overflow-auto">
     <div class="row mt-3 mb-3">
         <label class="col-sm-3 col-form-label">Type</label>
         <div class="col-sm-9">

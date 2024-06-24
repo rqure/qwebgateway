@@ -178,10 +178,6 @@ function registerTreeNodeComponent(app, context) {
                     return;
                 }
 
-                if (this.selectedNode.notificationTokens.length > 0) {
-                    this.database.unregisterNotifications(this.selectedNode.notificationTokens.slice());
-                }
-
                 this.selectedNode.notificationTokens = event.tokens;
             },
 
