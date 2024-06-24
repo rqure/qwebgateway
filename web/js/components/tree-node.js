@@ -10,7 +10,7 @@ function registerTreeNodeComponent(app, context) {
         </div>
         <ul class="list-group list-group-flush" v-if="expanded">
             <tree-node
-                v-for="child in localEntityChildren" :entityId="child.getId()" />
+                v-for="child in localEntityChildren" :entityId="child.getRaw()" />
         </ul>
     </li>`,
 

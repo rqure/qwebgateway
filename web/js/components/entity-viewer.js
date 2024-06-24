@@ -30,26 +30,26 @@ function registerEntityViewerComponent(app, context) {
             </select>
         </div>
         <div v-if="field.typeName === 'qmq.Int'" class="col-sm-6">
-            <input type="number" class="form-control" v-model="field.value">
+            <input type="number" class="form-control" v-model="field.value" @change="onIntFieldChange(field)">
         </div>
         <div v-if="field.typeName === 'qmq.Float'" class="col-sm-6">
-            <input type="number" class="form-control" v-model="field.value">
+            <input type="number" class="form-control" v-model="field.value" @change="onFloatFieldChange(field)">
         </div>
         <div v-if="field.typeName === 'qmq.String'" class="col-sm-6">
-            <input type="text" class="form-control" v-model="field.value">
+            <input type="text" class="form-control" v-model="field.value" @change="onStringFieldChange(field)">
         </div>
         <div v-if="field.typeName === 'qmq.Timestamp'" class="col-sm-6">
-            <input type="datetime-local" class="form-control" v-model="field.value">
+            <input type="datetime-local" class="form-control" v-model="field.value" @change="onTimestampFieldChanged(field)">
         </div>
         <div v-if="field.typeName === 'qmq.BinaryFile'" class="col-sm-6">
             <input type="file" class="form-control" @change="onFileSelected(event, field)">
         </div>
         <div v-if="field.typeName === 'qmq.EntityReference'" class="col-sm-6">
-            <input type="text" class="form-control" v-model="field.value">
+            <input type="text" class="form-control" v-model="field.value" @change="onEntityReferenceChanged(field)">
         </div>
         <div v-if="isEnum(field.typeClass)" class="col-sm-6">
             <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
-            <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`">
+            <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`" @change="onEnumFieldChanged(field)">
                 <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" :value="choiceValue">{{choiceName}}</option>
             </select>
         </div>
@@ -119,8 +119,13 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onIntFieldChange(field) {
+                const parsedValue = parseInt(field.value);
+                if (isNaN(parsedValue)) {
+                    return;
+                }
+
                 const value = new proto.qmq.Int();
-                value.setRaw(parseInt(field.value));
+                value.setRaw(parsedValue);
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
@@ -134,7 +139,83 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onFloatFieldChange(field) {
-                    
+                const parsedValue = parseFloat(field.value);
+                if (isNaN(parsedValue)) {
+                    return;
+                }
+
+                const value = new proto.qmq.Float();
+                value.setRaw(parsedValue);
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
+            },
+
+            onStringFieldChange(field) {
+                const value = new proto.qmq.String();
+                value.setRaw(field.value);
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
+            },
+
+            onTimestampFieldChanged(field) {
+                const value = new proto.qmq.Timestamp();
+                value.getRaw().fromDate(new Date(field.value));
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
+            },
+
+            onEntityReferenceChanged(field) {
+                const value = new proto.qmq.EntityReference();
+                value.setRaw(field.value);
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
+            },
+
+            onEnumFieldChanged(field) {
+                const value = new field.typeClass();
+                value.setRaw(parseInt(field.value));
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
             },
 
             onFileSelected(event, field) {
