@@ -170,6 +170,7 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qmq.IWebCl
 		qmq.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
 	}
 
+	response.Status = qmq.WebRuntimeUnregisterNotificationResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
 		qmq.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not marshal response: %v", err)

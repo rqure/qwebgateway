@@ -110,7 +110,7 @@ function registerTreeNodeComponent(app, context) {
                     }));
 
                     if (this.selectedNode.notificationTokens.length > 0) {
-                        this.database.unregisterNotifications(this.selectedNode.notificationTokens);
+                        this.database.unregisterNotifications(this.selectedNode.notificationTokens.slice());
                         this.selectedNode.notificationTokens = [];
                     }
 
@@ -173,7 +173,7 @@ function registerTreeNodeComponent(app, context) {
                 }
 
                 if (this.selectedNode.notificationTokens.length > 0) {
-                    this.database.unregisterNotifications(this.selectedNode.notificationTokens);
+                    this.database.unregisterNotifications(this.selectedNode.notificationTokens.slice());
                 }
 
                 this.selectedNode.notificationTokens = event.tokens;

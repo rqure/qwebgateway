@@ -382,7 +382,7 @@ class DatabaseInteractor {
                 }
 
                 this._eventManager.dispatchEvent(DATABASE_EVENTS.REGISTER_NOTIFICATION_RESPONSE, {
-                    tokens: response.getTokensList(),
+                    tokens: response.getTokensList().filter(t => t !== ""),
                     responseIdentifier: responseIdentifier
                 });
             })
