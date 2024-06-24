@@ -132,6 +132,7 @@ function registerTreeNodeComponent(app, context) {
     
                         const protoClass = result.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
                         this.selectedNode.entityFields[result.getField()] = {
+                            name: result.getField(),
                             value: protoClass.deserializeBinary(result.getValue().getValue_asU8()).getRaw(),
                             typeClass: protoClass,
                             typeName: result.getValue().getTypeName(),
@@ -188,6 +189,7 @@ function registerTreeNodeComponent(app, context) {
                 
                 const protoClass = field.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
                 this.selectedNode.entityFields[field.getName()] = {
+                    name: field.getName(),
                     value: protoClass.deserializeBinary(field.getValue().getValue_asU8()).getRaw(),
                     typeClass: protoClass,
                     typeName: field.getValue().getTypeName(),

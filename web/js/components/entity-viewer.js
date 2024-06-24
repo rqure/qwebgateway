@@ -24,7 +24,7 @@ function registerEntityViewerComponent(app, context) {
         <label class="col-sm-2 col-form-label">{{name}}</label>
         <div v-if="field.typeName === 'qmq.Bool'" class="col-sm-6">
             <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
-            <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`">
+            <select class="form-select" v-model="field.value" @change=onBoolFieldChange(field) :id="\`\${selectedNode.entityId}-\${name}\`">
                 <option value="false">False</option>
                 <option value="true">True</option>  
             </select>
@@ -103,7 +103,19 @@ function registerEntityViewerComponent(app, context) {
                 return {};
             },
 
-            onFieldChanged(field) {
+            onBoolFieldChange(field) {
+                const value = new proto.qmq.Bool();
+                value.setRaw(field.value === "true");
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
             },
 
             onFileSelected(event, field) {

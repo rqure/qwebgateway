@@ -367,7 +367,7 @@ class DatabaseInteractor {
             }
 
             nr.setField(r.field);
-            nr.setContext(r.context || []);
+            nr.setContextfieldsList(r.context || []);
             nr.setNotifyonchange(r.notifyOnChange === true);
 
             return nr;
