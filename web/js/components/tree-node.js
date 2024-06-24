@@ -193,7 +193,7 @@ function registerTreeNodeComponent(app, context) {
                     value: protoClass.deserializeBinary(field.getValue().getValue_asU8()).getRaw(),
                     typeClass: protoClass,
                     typeName: field.getValue().getTypeName(),
-                    writeTime: field.getWritetime().getRaw().toDate().toLocaleString( 'en-CA', {
+                    writeTime: field.getWritetime().toDate().toLocaleString( 'en-CA', {
                         timeZoneName:'longOffset',
                         year: 'numeric',
                         month: 'numeric',
