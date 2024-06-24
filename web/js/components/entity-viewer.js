@@ -118,6 +118,25 @@ function registerEntityViewerComponent(app, context) {
                 ]);
             },
 
+            onIntFieldChange(field) {
+                const value = new proto.qmq.Int();
+                value.setRaw(parseInt(field.value));
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]);
+            },
+
+            onFloatFieldChange(field) {
+                    
+            },
+
             onFileSelected(event, field) {
                 const me = this;
                 const file = event.target.files[0];
