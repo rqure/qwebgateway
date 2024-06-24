@@ -136,17 +136,18 @@ function registerTreeNodeComponent(app, context) {
                             value: protoClass.deserializeBinary(result.getValue().getValue_asU8()).getRaw(),
                             typeClass: protoClass,
                             typeName: result.getValue().getTypeName(),
-                            writeTime: result.getWritetime().getRaw().toDate().toLocaleString( 'en-CA', {
-                                timeZoneName:'longOffset',
-                                year: 'numeric',
-                                month: 'numeric',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: 'numeric',
-                                second: 'numeric',
-                                fractionalSecondDigits: 3
-                            } )
+                            writeTime: result.getWritetime().getRaw().toDate().toLocaleString( 'sv-SE', {
+                                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                                } ) + "." + result.getWritetime().getRaw().toDate().toLocaleString( 'sv-SE', {
+                                    fractionalSecondDigits: 3
+                                } )
                         };
+
+                        if (protoClass === proto.qmq.Timestamp) {
+                            this.selectedNode.entityFields[result.getField()].value = this.selectedNode.entityFields[result.getField()].value.toDate().toLocaleString( 'sv-SE', {
+                                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                            } );
+                        }
                     } catch (e) {
                         qError(`[tree-node::onRead] Failed to process read response: ${e}`);
                         continue;
@@ -193,17 +194,18 @@ function registerTreeNodeComponent(app, context) {
                     value: protoClass.deserializeBinary(field.getValue().getValue_asU8()).getRaw(),
                     typeClass: protoClass,
                     typeName: field.getValue().getTypeName(),
-                    writeTime: field.getWritetime().toDate().toLocaleString( 'en-CA', {
-                        timeZoneName:'longOffset',
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        second: 'numeric',
-                        fractionalSecondDigits: 3
-                    } )
+                    writeTime: field.getWritetime().toDate().toLocaleString( 'sv-SE', {
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        } ) + "." + field.getWritetime().toDate().toLocaleString( 'sv-SE', {
+                            fractionalSecondDigits: 3
+                        } )
                 };
+
+                if (protoClass === proto.qmq.Timestamp) {
+                    this.selectedNode.entityFields[field.getName()].value = this.selectedNode.entityFields[field.getName()].value.toDate().toLocaleString( 'sv-SE', {
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    } );
+                }
             }
         },
 

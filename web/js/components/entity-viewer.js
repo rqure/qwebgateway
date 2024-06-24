@@ -175,7 +175,7 @@ function registerEntityViewerComponent(app, context) {
 
             onTimestampFieldChanged(field) {
                 const value = new proto.qmq.Timestamp();
-                value.getRaw().fromDate(new Date(field.value));
+                value.setRaw( new proto.google.protobuf.Timestamp.fromDate(new Date(field.value)) );
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
