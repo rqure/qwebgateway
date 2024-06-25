@@ -27,4 +27,4 @@ jobs:
         with:
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: rqure/config:${{ github.ref_name }}
+          tags: rqure/webgateway:${{ github.ref_name }}
