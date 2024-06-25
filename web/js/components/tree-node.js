@@ -61,11 +61,7 @@ function registerTreeNodeComponent(app, context) {
             this.isDatabaseConnected = this.database.isConnected();
 
             if (this.isDatabaseConnected) {
-                if (this.localEntityId === "") {
-                    this.database.queryRootEntityId();
-                } else {
-                    this.database.queryEntity(this.localEntityId);
-                }
+                this.onDatabaseConnected();
             }
         },
 
@@ -88,6 +84,10 @@ function registerTreeNodeComponent(app, context) {
                 if (this.localEntityId === "") {
                     this.localEntityId = event.rootId;
                     this.database.queryEntity(this.localEntityId);
+                
+                    this.database.registerNotifications([
+                        {type: "Root", field: "SchemaUpdateTrigger"},
+                    ], "Root");
                 }
             },
 
@@ -182,6 +182,12 @@ function registerTreeNodeComponent(app, context) {
             },
 
             onNotification(event) {
+                if (event.notification.getCurrent().getName() === "SchemaUpdateTrigger" && !this.selectedNode.notificationTokens.includes(event.notification.getToken()) ) {
+                    // Received a SchemaUpdateTrigger notification, re-query the schema
+                    this.database.queryEntity(this.localEntityId);
+                    return;
+                }
+
                 const field = event.notification.getCurrent();
 
                 if (this.selectedNode.entityId !== field.getId()) {

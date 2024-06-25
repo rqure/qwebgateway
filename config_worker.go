@@ -33,6 +33,23 @@ func (w *ConfigWorker) DoWork() {
 
 }
 
+func (w *ConfigWorker) TriggerSchemaUpdate() {
+	root := w.db.FindEntities("Root")
+
+	for _, id := range root {
+		request := &qmq.DatabaseRequest{
+			Id:    id,
+			Field: "SchemaUpdateTrigger",
+		}
+
+		w.db.Read([]*qmq.DatabaseRequest{request})
+
+		if request.Success {
+			w.db.Write([]*qmq.DatabaseRequest{request})
+		}
+	}
+}
+
 func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
 	client := args[0].(qmq.IWebClient)
 	msg := args[1].(*qmq.WebMessage)
@@ -97,6 +114,7 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client qmq.IWebClient, msg *q
 	}
 
 	client.Write(msg)
+	w.TriggerSchemaUpdate()
 }
 
 func (w *ConfigWorker) onConfigDeleteEntityRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
@@ -132,6 +150,7 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client qmq.IWebClient, msg *q
 	}
 
 	client.Write(msg)
+	w.TriggerSchemaUpdate()
 }
 
 func (w *ConfigWorker) onConfigGetEntityRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
@@ -289,6 +308,7 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qmq.IWebClient, msg 
 	}
 
 	client.Write(msg)
+	w.TriggerSchemaUpdate()
 }
 
 func (w *ConfigWorker) onConfigGetFieldSchemaRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
@@ -479,6 +499,7 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client qmq.IWebClient, msg
 		return
 	}
 	client.Write(msg)
+	w.TriggerSchemaUpdate()
 }
 
 func (w *ConfigWorker) onConfigCreateSnapshotRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
@@ -550,6 +571,7 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client qmq.IWebClient, msg
 	}
 
 	client.Write(msg)
+	w.TriggerSchemaUpdate()
 }
 
 func (w *ConfigWorker) onConfigGetAllFieldsRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
