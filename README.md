@@ -1,1 +1,1 @@
-# qconfig
+# qwebgateway

@@ -1,4 +1,4 @@
-module github.com/rqure/qconfig
+module github.com/rqure/qwebgateway
 
 go 1.21.6
 
