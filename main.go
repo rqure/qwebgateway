@@ -3,11 +3,11 @@ package main
 import (
 	"os"
 
-	qmq "github.com/rqure/qmq/src"
+	qdb "github.com/rqure/qdb/src"
 )
 
 func getDatabaseAddress() string {
-	addr := os.Getenv("QMQ_ADDR")
+	addr := os.Getenv("qdb_ADDR")
 	if addr == "" {
 		addr = "localhost:6379"
 	}
@@ -16,29 +16,29 @@ func getDatabaseAddress() string {
 }
 
 func main() {
-	db := qmq.NewRedisDatabase(qmq.RedisDatabaseConfig{
+	db := qdb.NewRedisDatabase(qdb.RedisDatabaseConfig{
 		Address: getDatabaseAddress(),
 	})
 
-	dbWorker := qmq.NewDatabaseWorker(db)
-	webServiceWorker := qmq.NewWebServiceWorker()
+	dbWorker := qdb.NewDatabaseWorker(db)
+	webServiceWorker := qdb.NewWebServiceWorker()
 	configWorker := NewConfigWorker(db)
 	runtimeWorker := NewRuntimeWorker(db)
 
-	dbWorker.Signals.Connected.Connect(qmq.Slot(configWorker.OnDatabaseConnected))
-	dbWorker.Signals.Disconnected.Connect(qmq.Slot(configWorker.OnDatabaseDisconnected))
-	webServiceWorker.Signals.Received.Connect(qmq.SlotWithArgs(configWorker.OnNewClientMessage))
+	dbWorker.Signals.Connected.Connect(qdb.Slot(configWorker.OnDatabaseConnected))
+	dbWorker.Signals.Disconnected.Connect(qdb.Slot(configWorker.OnDatabaseDisconnected))
+	webServiceWorker.Signals.Received.Connect(qdb.SlotWithArgs(configWorker.OnNewClientMessage))
 
-	dbWorker.Signals.Connected.Connect(qmq.Slot(runtimeWorker.OnDatabaseConnected))
-	dbWorker.Signals.Disconnected.Connect(qmq.Slot(runtimeWorker.OnDatabaseDisconnected))
-	webServiceWorker.Signals.Received.Connect(qmq.SlotWithArgs(runtimeWorker.OnNewClientMessage))
-	webServiceWorker.Signals.ClientConnected.Connect(qmq.SlotWithArgs(runtimeWorker.OnClientConnected))
-	webServiceWorker.Signals.ClientDisconnected.Connect(qmq.SlotWithArgs(runtimeWorker.OnClientDisconnected))
+	dbWorker.Signals.Connected.Connect(qdb.Slot(runtimeWorker.OnDatabaseConnected))
+	dbWorker.Signals.Disconnected.Connect(qdb.Slot(runtimeWorker.OnDatabaseDisconnected))
+	webServiceWorker.Signals.Received.Connect(qdb.SlotWithArgs(runtimeWorker.OnNewClientMessage))
+	webServiceWorker.Signals.ClientConnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientConnected))
+	webServiceWorker.Signals.ClientDisconnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientDisconnected))
 
 	// Create a new application configuration
-	config := qmq.ApplicationConfig{
+	config := qdb.ApplicationConfig{
 		Name: "config",
-		Workers: []qmq.IWorker{
+		Workers: []qdb.IWorker{
 			dbWorker,
 			webServiceWorker,
 			configWorker,
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// Create a new application
-	app := qmq.NewApplication(config)
+	app := qdb.NewApplication(config)
 
 	// Execute the application
 	app.Execute()

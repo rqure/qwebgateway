@@ -9,7 +9,7 @@ function registerBackupModalComponent(app, context) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @click="onCancelButtonClicked"></button>
             </div>
             <div class="modal-body">
-                <button class="btn btn-primary" :disabled="isDownloadDisabled"><a :href="blobUrl" download="qmq.db">Download Backup</a></button>
+                <button class="btn btn-primary" :disabled="isDownloadDisabled"><a :href="blobUrl" download="qdb.db">Download Backup</a></button>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonClicked">Cancel</button>

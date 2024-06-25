@@ -143,13 +143,13 @@ function registerTreeNodeComponent(app, context) {
                                 } )
                         };
 
-                        if (protoClass === proto.qmq.Timestamp) {
+                        if (protoClass === proto.qdb.Timestamp) {
                             this.selectedNode.entityFields[result.getField()].value = this.selectedNode.entityFields[result.getField()].value.toDate().toLocaleString( 'sv-SE', {
                                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                             } );
                         }
 
-                        if (protoClass === proto.qmq.BinaryFile) {
+                        if (protoClass === proto.qdb.BinaryFile) {
                             const blob = new Blob([atob(this.selectedNode.entityFields[result.getField()].value)], {type: "application/octet-stream"});
                             this.selectedNode.entityFields[result.getField()].blobUrl = window.URL.createObjectURL(blob);
                         }
@@ -208,13 +208,13 @@ function registerTreeNodeComponent(app, context) {
                         } )
                 };
 
-                if (protoClass === proto.qmq.Timestamp) {
+                if (protoClass === proto.qdb.Timestamp) {
                     this.selectedNode.entityFields[field.getName()].value = this.selectedNode.entityFields[field.getName()].value.toDate().toLocaleString( 'sv-SE', {
                         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                     } );
                 }
 
-                if (protoClass === proto.qmq.BinaryFile) {
+                if (protoClass === proto.qdb.BinaryFile) {
                     const blob = new Blob([atob(this.selectedNode.entityFields[field.getName()].value)], {type: "application/octet-stream"});
                     this.selectedNode.entityFields[field.getName()].blobUrl = window.URL.createObjectURL(blob);
                 }

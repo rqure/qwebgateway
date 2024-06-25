@@ -115,7 +115,7 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             onCreateButtonPressed() {
-                const request = new proto.qmq.WebConfigSetEntitySchemaRequest();
+                const request = new proto.qdb.WebConfigSetEntitySchemaRequest();
                 request.setName(this.entityType);
                 request.setFieldsList(this.entityFields);
 

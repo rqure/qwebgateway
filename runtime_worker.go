@@ -1,24 +1,24 @@
 package main
 
 import (
-	qmq "github.com/rqure/qmq/src"
+	qdb "github.com/rqure/qdb/src"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type RuntimeWorker struct {
-	db                qmq.IDatabase
-	dbConnectionState qmq.ConnectionState_ConnectionStateEnum
+	db                qdb.IDatabase
+	dbConnectionState qdb.ConnectionState_ConnectionStateEnum
 
-	clientIdToClient    map[string]qmq.IWebClient
-	clientSubscriptions map[string]map[string][]*qmq.DatabaseNotification
+	clientIdToClient    map[string]qdb.IWebClient
+	clientSubscriptions map[string]map[string][]*qdb.DatabaseNotification
 }
 
-func NewRuntimeWorker(db qmq.IDatabase) *RuntimeWorker {
+func NewRuntimeWorker(db qdb.IDatabase) *RuntimeWorker {
 	return &RuntimeWorker{
 		db:                  db,
-		dbConnectionState:   qmq.ConnectionState_DISCONNECTED,
-		clientIdToClient:    make(map[string]qmq.IWebClient),
-		clientSubscriptions: make(map[string]map[string][]*qmq.DatabaseNotification),
+		dbConnectionState:   qdb.ConnectionState_DISCONNECTED,
+		clientIdToClient:    make(map[string]qdb.IWebClient),
+		clientSubscriptions: make(map[string]map[string][]*qdb.DatabaseNotification),
 	}
 }
 
@@ -35,9 +35,9 @@ func (w *RuntimeWorker) DoWork() {
 }
 
 func (w *RuntimeWorker) OnClientConnected(args ...interface{}) {
-	client := args[0].(qmq.IWebClient)
+	client := args[0].(qdb.IWebClient)
 	w.clientIdToClient[client.Id()] = client
-	w.clientSubscriptions[client.Id()] = make(map[string][]*qmq.DatabaseNotification)
+	w.clientSubscriptions[client.Id()] = make(map[string][]*qdb.DatabaseNotification)
 }
 
 func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
@@ -47,31 +47,31 @@ func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
 }
 
 func (w *RuntimeWorker) OnNewClientMessage(args ...interface{}) {
-	client := args[0].(qmq.IWebClient)
-	msg := args[1].(*qmq.WebMessage)
+	client := args[0].(qdb.IWebClient)
+	msg := args[1].(*qdb.WebMessage)
 
-	if msg.Payload.MessageIs(&qmq.WebRuntimeDatabaseRequest{}) {
+	if msg.Payload.MessageIs(&qdb.WebRuntimeDatabaseRequest{}) {
 		w.onRuntimeDatabaseRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qmq.WebRuntimeRegisterNotificationRequest{}) {
+	} else if msg.Payload.MessageIs(&qdb.WebRuntimeRegisterNotificationRequest{}) {
 		w.onRuntimeRegisterNotificationRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qmq.WebRuntimeUnregisterNotificationRequest{}) {
+	} else if msg.Payload.MessageIs(&qdb.WebRuntimeUnregisterNotificationRequest{}) {
 		w.onRuntimeUnregisterNotificationRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qmq.WebRuntimeGetNotificationsRequest{}) {
+	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetNotificationsRequest{}) {
 		w.onRuntimeGetNotificationsRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qmq.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
+	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
 		w.onRuntimeGetDatabaseConnectionStatusRequest(client, msg)
 	}
 }
 
 func (w *RuntimeWorker) OnDatabaseConnected() {
-	w.dbConnectionState = qmq.ConnectionState_CONNECTED
+	w.dbConnectionState = qdb.ConnectionState_CONNECTED
 }
 
 func (w *RuntimeWorker) OnDatabaseDisconnected() {
-	w.dbConnectionState = qmq.ConnectionState_DISCONNECTED
+	w.dbConnectionState = qdb.ConnectionState_DISCONNECTED
 }
 
-func (w *RuntimeWorker) onProcessNotifications(notification *qmq.DatabaseNotification) {
+func (w *RuntimeWorker) onProcessNotifications(notification *qdb.DatabaseNotification) {
 	for clientId := range w.clientSubscriptions {
 		if w.clientSubscriptions[clientId][notification.Token] != nil {
 			w.clientSubscriptions[clientId][notification.Token] = append(w.clientSubscriptions[clientId][notification.Token], notification)
@@ -79,20 +79,20 @@ func (w *RuntimeWorker) onProcessNotifications(notification *qmq.DatabaseNotific
 	}
 }
 
-func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
-	request := new(qmq.WebRuntimeDatabaseRequest)
-	response := new(qmq.WebRuntimeDatabaseResponse)
+func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
+	request := new(qdb.WebRuntimeDatabaseRequest)
+	response := new(qdb.WebRuntimeDatabaseResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not unmarshal request: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qmq.ConnectionState_CONNECTED {
-		qmq.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Database is not connected.", request)
+	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
+		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Database is not connected.", request)
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qmq.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
+			qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -100,33 +100,33 @@ func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qmq.IWebClient, msg *qmq
 		return
 	}
 
-	if request.RequestType == qmq.WebRuntimeDatabaseRequest_READ {
-		qmq.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Read request: %v", request.Requests)
+	if request.RequestType == qdb.WebRuntimeDatabaseRequest_READ {
+		qdb.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Read request: %v", request.Requests)
 		w.db.Read(request.Requests)
 		response.Response = request.Requests
-	} else if request.RequestType == qmq.WebRuntimeDatabaseRequest_WRITE {
-		qmq.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Write request: %v", request.Requests)
+	} else if request.RequestType == qdb.WebRuntimeDatabaseRequest_WRITE {
+		qdb.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Write request: %v", request.Requests)
 		w.db.Write(request.Requests)
 		response.Response = request.Requests
 	} else {
-		qmq.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Unknown request type.", request)
+		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Unknown request type.", request)
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
-	request := new(qmq.WebRuntimeRegisterNotificationRequest)
-	response := new(qmq.WebRuntimeRegisterNotificationResponse)
+func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
+	request := new(qdb.WebRuntimeRegisterNotificationRequest)
+	response := new(qdb.WebRuntimeRegisterNotificationResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not unmarshal request: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
@@ -134,29 +134,29 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qmq.IWebClie
 		token := w.db.Notify(request, w.onProcessNotifications)
 
 		if w.clientSubscriptions[client.Id()][token] == nil {
-			w.clientSubscriptions[client.Id()][token] = make([]*qmq.DatabaseNotification, 0)
+			w.clientSubscriptions[client.Id()][token] = make([]*qdb.DatabaseNotification, 0)
 		}
 
-		qmq.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification: %v for client %s", token, client.Id())
+		qdb.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification: %v for client %s", token, client.Id())
 
 		response.Tokens = append(response.Tokens, token)
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not marshal response: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
-	request := new(qmq.WebRuntimeUnregisterNotificationRequest)
-	response := new(qmq.WebRuntimeUnregisterNotificationResponse)
+func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
+	request := new(qdb.WebRuntimeUnregisterNotificationRequest)
+	response := new(qdb.WebRuntimeUnregisterNotificationResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not unmarshal request: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
@@ -167,56 +167,56 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qmq.IWebCl
 			delete(w.clientSubscriptions[client.Id()], token)
 		}
 
-		qmq.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
+		qdb.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
 	}
 
-	response.Status = qmq.WebRuntimeUnregisterNotificationResponse_SUCCESS
+	response.Status = qdb.WebRuntimeUnregisterNotificationResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not marshal response: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
-	request := new(qmq.WebRuntimeGetNotificationsRequest)
-	response := new(qmq.WebRuntimeGetNotificationsResponse)
+func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
+	request := new(qdb.WebRuntimeGetNotificationsRequest)
+	response := new(qdb.WebRuntimeGetNotificationsResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not unmarshal request: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
 	for token, notifications := range w.clientSubscriptions[client.Id()] {
 		response.Notifications = append(response.Notifications, notifications...)
-		w.clientSubscriptions[client.Id()][token] = make([]*qmq.DatabaseNotification, 0)
+		w.clientSubscriptions[client.Id()][token] = make([]*qdb.DatabaseNotification, 0)
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not marshal response: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client qmq.IWebClient, msg *qmq.WebMessage) {
-	request := new(qmq.WebRuntimeGetDatabaseConnectionStatusRequest)
-	response := new(qmq.WebRuntimeGetDatabaseConnectionStatusResponse)
+func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
+	request := new(qdb.WebRuntimeGetDatabaseConnectionStatusRequest)
+	response := new(qdb.WebRuntimeGetDatabaseConnectionStatusResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not unmarshal request: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	response.Status = &qmq.ConnectionState{Raw: w.dbConnectionState}
+	response.Status = &qdb.ConnectionState{Raw: w.dbConnectionState}
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qmq.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not marshal response: %v", err)
+		qdb.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not marshal response: %v", err)
 		return
 	}
 
