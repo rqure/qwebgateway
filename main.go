@@ -7,7 +7,7 @@ import (
 )
 
 func getDatabaseAddress() string {
-	addr := os.Getenv("qdb_ADDR")
+	addr := os.Getenv("QDB_ADDR")
 	if addr == "" {
 		addr = "localhost:6379"
 	}
@@ -24,6 +24,10 @@ func main() {
 	webServiceWorker := qdb.NewWebServiceWorker()
 	configWorker := NewConfigWorker(db)
 	runtimeWorker := NewRuntimeWorker(db)
+	leaderElectionWorker := qdb.NewLeaderElectionWorker(db)
+
+	dbWorker.Signals.Connected.Connect(qdb.Slot(leaderElectionWorker.OnDatabaseConnected))
+	dbWorker.Signals.Disconnected.Connect(qdb.Slot(leaderElectionWorker.OnDatabaseDisconnected))
 
 	dbWorker.Signals.Connected.Connect(qdb.Slot(configWorker.OnDatabaseConnected))
 	dbWorker.Signals.Disconnected.Connect(qdb.Slot(configWorker.OnDatabaseDisconnected))
@@ -37,9 +41,10 @@ func main() {
 
 	// Create a new application configuration
 	config := qdb.ApplicationConfig{
-		Name: "config",
+		Name: "webgateway",
 		Workers: []qdb.IWorker{
 			dbWorker,
+			leaderElectionWorker,
 			webServiceWorker,
 			configWorker,
 			runtimeWorker,

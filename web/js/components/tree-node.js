@@ -86,7 +86,7 @@ function registerTreeNodeComponent(app, context) {
                     this.database.queryEntity(this.localEntityId);
                 
                     this.database.registerNotifications([
-                        {type: "Root", field: "SchemaUpdateTrigger"},
+                        {id: event.rootId, field: "SchemaUpdateTrigger"},
                     ], "Root");
                 }
             },
