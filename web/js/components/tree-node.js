@@ -149,9 +149,12 @@ function registerTreeNodeComponent(app, context) {
                             } );
                         }
 
-                        if (protoClass === proto.qdb.BinaryFile) {
-                            const blob = new Blob([atob(this.selectedNode.entityFields[result.getField()].value)], {type: "application/octet-stream"});
-                            this.selectedNode.entityFields[result.getField()].blobUrl = window.URL.createObjectURL(blob);
+                        if (protoClass === proto.qdb.BinaryFile) {                            
+                            fetch(this.selectedNode.entityFields[result.getField()].value)
+                                .then(res => res.blob())
+                                .then(blob => {
+                                    this.selectedNode.entityFields[result.getField()].blobUrl = window.URL.createObjectURL(blob);
+                                });
                         }
                     } catch (e) {
                         qError(`[tree-node::onRead] Failed to process read response: ${e}`);
@@ -215,8 +218,13 @@ function registerTreeNodeComponent(app, context) {
                 }
 
                 if (protoClass === proto.qdb.BinaryFile) {
-                    const blob = new Blob([atob(this.selectedNode.entityFields[field.getName()].value)], {type: "application/octet-stream"});
-                    this.selectedNode.entityFields[field.getName()].blobUrl = window.URL.createObjectURL(blob);
+                    // const blob = new Blob([atob(this.selectedNode.entityFields[field.getName()].value)], {type: "application/octet-stream"});
+                    // this.selectedNode.entityFields[field.getName()].blobUrl = window.URL.createObjectURL(blob);
+                    fetch(this.selectedNode.entityFields[field.getName()].value)
+                        .then(res => res.blob())
+                        .then(blob => {
+                            this.selectedNode.entityFields[field.getName()].blobUrl = window.URL.createObjectURL(blob);
+                        });
                 }
             }
         },
