@@ -3,7 +3,7 @@ module github.com/rqure/qwebgateway
 go 1.21.6
 
 require (
-	github.com/rqure/qdb v1.2.35
+	github.com/rqure/qdb v1.2.36
 	google.golang.org/protobuf v1.32.0
 )
 
