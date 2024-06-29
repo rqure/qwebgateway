@@ -218,8 +218,6 @@ function registerTreeNodeComponent(app, context) {
                 }
 
                 if (protoClass === proto.qdb.BinaryFile) {
-                    // const blob = new Blob([atob(this.selectedNode.entityFields[field.getName()].value)], {type: "application/octet-stream"});
-                    // this.selectedNode.entityFields[field.getName()].blobUrl = window.URL.createObjectURL(blob);
                     fetch(this.selectedNode.entityFields[field.getName()].value)
                         .then(res => res.blob())
                         .then(blob => {

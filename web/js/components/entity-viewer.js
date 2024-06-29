@@ -236,7 +236,7 @@ function registerEntityViewerComponent(app, context) {
                       reader.readAsDataURL(new Blob([buffer]))
                     });
                     return base64url;
-                  }
+                }
 
                 const reader = new FileReader();
                 reader.onload = async function(e) {
