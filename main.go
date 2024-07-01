@@ -25,6 +25,12 @@ func main() {
 	configWorker := NewConfigWorker(db)
 	runtimeWorker := NewRuntimeWorker(db)
 	leaderElectionWorker := qdb.NewLeaderElectionWorker(db)
+	schemaValidator := qdb.NewSchemaValidator()
+
+	dbWorker.Signals.SchemaUpdated.Connect(qdb.Slot(schemaValidator.OnSchemaUpdated))
+	leaderElectionWorker.AddAvailabilityCriteria(func() bool {
+		return schemaValidator.IsValid()
+	})
 
 	dbWorker.Signals.Connected.Connect(qdb.Slot(leaderElectionWorker.OnDatabaseConnected))
 	dbWorker.Signals.Disconnected.Connect(qdb.Slot(leaderElectionWorker.OnDatabaseDisconnected))
