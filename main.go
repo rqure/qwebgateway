@@ -27,6 +27,8 @@ func main() {
 	leaderElectionWorker := qdb.NewLeaderElectionWorker(db)
 	schemaValidator := qdb.NewSchemaValidator(db)
 
+	schemaValidator.AddEntity("Root", "SchemaUpdateTrigger")
+
 	dbWorker.Signals.SchemaUpdated.Connect(qdb.Slot(schemaValidator.OnSchemaUpdated))
 	leaderElectionWorker.AddAvailabilityCriteria(func() bool {
 		return schemaValidator.IsValid()
