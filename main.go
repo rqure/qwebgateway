@@ -25,6 +25,7 @@ func main() {
 	configWorker := NewConfigWorker(db)
 	runtimeWorker := NewRuntimeWorker(db)
 	leaderElectionWorker := qdb.NewLeaderElectionWorker(db)
+	restApiWorker := NewRestApiWorker()
 	schemaValidator := qdb.NewSchemaValidator(db)
 
 	schemaValidator.AddEntity("Root", "SchemaUpdateTrigger")
@@ -40,12 +41,14 @@ func main() {
 	dbWorker.Signals.Connected.Connect(qdb.Slot(configWorker.OnDatabaseConnected))
 	dbWorker.Signals.Disconnected.Connect(qdb.Slot(configWorker.OnDatabaseDisconnected))
 	webServiceWorker.Signals.Received.Connect(qdb.SlotWithArgs(configWorker.OnNewClientMessage))
+	restApiWorker.Signals.Received.Connect(qdb.SlotWithArgs(configWorker.OnNewClientMessage))
 
 	dbWorker.Signals.Connected.Connect(qdb.Slot(runtimeWorker.OnDatabaseConnected))
 	dbWorker.Signals.Disconnected.Connect(qdb.Slot(runtimeWorker.OnDatabaseDisconnected))
 	webServiceWorker.Signals.Received.Connect(qdb.SlotWithArgs(runtimeWorker.OnNewClientMessage))
 	webServiceWorker.Signals.ClientConnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientConnected))
 	webServiceWorker.Signals.ClientDisconnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientDisconnected))
+	restApiWorker.Signals.Received.Connect(qdb.SlotWithArgs(runtimeWorker.OnNewClientMessage))
 
 	// Create a new application configuration
 	config := qdb.ApplicationConfig{
@@ -53,6 +56,7 @@ func main() {
 		Workers: []qdb.IWorker{
 			dbWorker,
 			leaderElectionWorker,
+			restApiWorker,
 			webServiceWorker,
 			configWorker,
 			runtimeWorker,
