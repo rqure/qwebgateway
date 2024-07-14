@@ -131,15 +131,15 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qdb.IWebClie
 	}
 
 	for _, request := range request.Requests {
-		token := w.db.Notify(request, w.onProcessNotifications)
+		token := w.db.Notify(request, qdb.NewNotificationCallback(w.onProcessNotifications))
 
-		if w.clientSubscriptions[client.Id()][token] == nil {
-			w.clientSubscriptions[client.Id()][token] = make([]*qdb.DatabaseNotification, 0)
+		if w.clientSubscriptions[client.Id()][token.Id()] == nil {
+			w.clientSubscriptions[client.Id()][token.Id()] = make([]*qdb.DatabaseNotification, 0)
 		}
 
 		qdb.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification: %v for client %s", token, client.Id())
 
-		response.Tokens = append(response.Tokens, token)
+		response.Tokens = append(response.Tokens, token.Id())
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
