@@ -78,6 +78,7 @@ function registerCreateTypeModalComponent(app, context) {
 
             onQueryAllFields(event) {
                 this.allFields = event.fields;
+                this.allFields.sort();
             },
 
             onQueryAllEntityTypes(event) {
