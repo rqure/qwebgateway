@@ -7,6 +7,7 @@ DATABASE_EVENTS = {
     ENTITY_TYPE_CREATED: "entity_type_created",
     FIELD_CREATED: "field_created",
     NOTIFICATION: "notification",
+    QUERY_ALL_ENTITIES: "query_all_entities",
     QUERY_ALL_ENTITY_TYPES: "query_all_entity_types",
     QUERY_ALL_FIELDS: "query_all_fields",
     QUERY_ENTITY_SCHEMA: "query_entity_schema",
@@ -166,6 +167,20 @@ class DatabaseInteractor {
             .catch(error => {
                 qError(`[DatabaseInteractor::createEntity] Failed to create entity: ${error}`)
             })
+    }
+
+    queryAllEntities(entityType) {
+        const request = new proto.qdb.WebConfigGetEntitiesRequest();
+        request.setType(entityType);
+
+        this._serverInteractor
+            .send(request, proto.qdb.WebConfigGetEntitiesResponse)
+            .then(response => {
+                this._eventManager.dispatchEvent(DATABASE_EVENTS.QUERY_ALL_ENTITIES, {entities: response.getEntitiesList()});
+            })
+            .catch(error => {
+                qError(`[DatabaseInteractor::queryAllEntities] Failed to get all entities: ${error}`)
+            });
     }
 
     queryEntity(entityId) {
