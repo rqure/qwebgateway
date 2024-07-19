@@ -60,6 +60,8 @@ func (w *RuntimeWorker) OnNewClientMessage(args ...interface{}) {
 		w.onRuntimeGetNotificationsRequest(client, msg)
 	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
 		w.onRuntimeGetDatabaseConnectionStatusRequest(client, msg)
+	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetEntitiesRequest{}) {
+		w.onRuntimeGetEntitiesRequest(client, msg)
 	}
 }
 
@@ -217,6 +219,38 @@ func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client qdb.I
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
 		qdb.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not marshal response: %v", err)
+		return
+	}
+
+	client.Write(msg)
+}
+
+func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
+	request := new(qdb.WebRuntimeGetEntitiesRequest)
+	response := new(qdb.WebRuntimeGetEntitiesResponse)
+
+	if err := msg.Payload.UnmarshalTo(request); err != nil {
+		qdb.Error("[RuntimeWorker::onRuntimeGetEntitiesRequest] Could not unmarshal request: %v", err)
+		return
+	}
+
+	entities := qdb.NewEntityFinder(w.db).Find(qdb.SearchCriteria{
+		EntityType: request.EntityType,
+	})
+
+	for _, entity := range entities {
+		response.Entities = append(response.Entities, &qdb.DatabaseEntity{
+			Id:       entity.GetId(),
+			Type:     entity.GetType(),
+			Name:     entity.GetName(),
+			Parent:   entity.GetParent(),
+			Children: entity.GetChildren(),
+		})
+	}
+
+	msg.Header.Timestamp = timestamppb.Now()
+	if err := msg.Payload.MarshalFrom(response); err != nil {
+		qdb.Error("[RuntimeWorker::onRuntimeGetEntitiesRequest] Could not marshal response: %v", err)
 		return
 	}
 
