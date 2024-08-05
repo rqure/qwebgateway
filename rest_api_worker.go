@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -11,17 +12,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type InitRequest struct {
-}
-
-type InitResponse struct {
+type MakeClientIdResponse struct {
 	ClientId string
-	Expires  time.Time
 }
 
 type RestApiWebClient struct {
-	Request    *qdb.WebMessage
-	ResponseCh chan *qdb.WebMessage
+	Request     *qdb.WebMessage
+	ResponseCh  chan *qdb.WebMessage
+	IsNewClient bool
 }
 
 func (c *RestApiWebClient) Id() string {
@@ -45,8 +43,9 @@ type RestApiWorkerSignals struct {
 }
 
 type RestApiWorker struct {
-	clientCh chan *RestApiWebClient
-	Signals  RestApiWorkerSignals
+	activeClients map[string]time.Time
+	clientCh      chan *RestApiWebClient
+	Signals       RestApiWorkerSignals
 }
 
 func NewRestApiWorker() *RestApiWorker {
@@ -56,8 +55,43 @@ func NewRestApiWorker() *RestApiWorker {
 }
 
 func (w *RestApiWorker) Init() {
-	http.Handle("/api/init", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
+	http.Handle("/make-client-id", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
+		response := &MakeClientIdResponse{
+			ClientId: uuid.NewString(),
+		}
 
+		client := &RestApiWebClient{
+			Request: &qdb.WebMessage{
+				Header: &qdb.WebHeader{
+					Id:        response.ClientId,
+					Timestamp: timestamppb.Now(),
+				},
+			},
+			ResponseCh:  make(chan *qdb.WebMessage, 1),
+			IsNewClient: true,
+		}
+
+		timeout := time.NewTimer(5 * time.Second)
+		w.clientCh <- client
+		select {
+		case response := <-client.ResponseCh:
+			b, err := json.Marshal(response)
+			if err != nil {
+				qdb.Error("[RestApiWorker::Init::/make-client-id] Failed to marshal response: %v", err)
+				http.Error(wr, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			wr.Write(b)
+
+			if !timeout.Stop() {
+				<-timeout.C
+			}
+		case <-timeout.C:
+			qdb.Error("[RestApiWorker::Init::/make-client-id] Timeout waiting for response")
+			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
+			return
+		}
 	}))
 
 	http.Handle("/api", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -649,10 +683,22 @@ func (w *RestApiWorker) Deinit() {
 }
 
 func (w *RestApiWorker) DoWork() {
+	for clientId, lastRequestTime := range w.activeClients {
+		if time.Since(lastRequestTime) > 5*time.Second {
+			delete(w.activeClients, clientId)
+		}
+	}
+
 	for {
 		select {
 		case client := <-w.clientCh:
-			w.onRequest(client)
+			if client.IsNewClient {
+				w.activeClients[client.Id()] = time.Now()
+			} else if _, ok := w.activeClients[client.Id()]; ok {
+				w.onRequest(client)
+			} else {
+				// TODO: Don't accept requests from unknown clients
+			}
 		default:
 			return
 		}
