@@ -4,12 +4,20 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/google/uuid"
 	qdb "github.com/rqure/qdb/src"
+	jsonpb "google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+type InitRequest struct {
+}
+
+type InitResponse struct {
+	ClientId string
+	Expires  time.Time
+}
 
 type RestApiWebClient struct {
 	Request    *qdb.WebMessage
@@ -48,13 +56,32 @@ func NewRestApiWorker() *RestApiWorker {
 }
 
 func (w *RestApiWorker) Init() {
+	http.Handle("/api/init", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
+
+	}))
+
 	http.Handle("/api", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
 		client := &RestApiWebClient{
 			Request:    &qdb.WebMessage{},
 			ResponseCh: make(chan *qdb.WebMessage, 1),
 		}
+
 		// Parse request and assume it is a WebMessage in JSON form
-		err := jsonpb.Unmarshal(r.Body, client.Request)
+		if r.Body == nil {
+			qdb.Error("[RestApiWorker::Init::/api] Request body is nil")
+			http.Error(wr, "Request body is nil", http.StatusBadRequest)
+			return
+		}
+
+		rBody := make([]byte, r.ContentLength)
+		_, err := r.Body.Read(rBody)
+		if err != nil {
+			qdb.Error("[RestApiWorker::Init::/api] Failed to read request body: %v", err)
+			http.Error(wr, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = jsonpb.Unmarshal(rBody, client.Request)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/api] Failed to parse request: %v", err)
 			http.Error(wr, err.Error(), http.StatusBadRequest)
@@ -67,10 +94,11 @@ func (w *RestApiWorker) Init() {
 		select {
 		case response := <-client.ResponseCh:
 			// Send response back to client
-			marshaller := &jsonpb.Marshaler{
-				EmitDefaults: true,
+			marshaller := &jsonpb.MarshalOptions{
+				EmitUnpopulated:   true,
+				EmitDefaultValues: true,
 			}
-			s, err := marshaller.MarshalToString(response)
+			s, err := marshaller.Marshal(response)
 			if err != nil {
 				qdb.Error("[RestApiWorker::Init::/api] Failed to marshal response: %v", err)
 				http.Error(wr, err.Error(), http.StatusInternalServerError)
@@ -105,15 +133,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigDeleteEntityRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -133,15 +164,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigSetEntitySchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -161,15 +195,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigCreateSnapshotRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -189,15 +226,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigRestoreSnapshotRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -217,15 +257,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigGetEntityTypesRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -245,15 +288,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigGetEntitySchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -273,15 +319,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigGetEntityRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -301,15 +350,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigGetFieldSchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -329,15 +381,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigSetFieldSchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -357,15 +412,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigGetRootRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -385,15 +443,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebConfigGetAllFieldsRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -413,15 +474,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebRuntimeDatabaseRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -441,15 +505,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebRuntimeRegisterNotificationRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -469,15 +536,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: true,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebRuntimeGetNotificationsRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -497,15 +567,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: false,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebRuntimeUnregisterNotificationRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -525,15 +598,18 @@ func (w *RestApiWorker) Init() {
 			Payload: payload,
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: false,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 
 	http.Handle("/examples/WebRuntimeGetDatabaseConnectionStatusRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
@@ -553,15 +629,18 @@ func (w *RestApiWorker) Init() {
 			},
 		}
 
-		marshaller := &jsonpb.Marshaler{
-			EmitDefaults: false,
+		marshaller := &jsonpb.MarshalOptions{
+			EmitUnpopulated:   true,
+			EmitDefaultValues: true,
 		}
-		err = marshaller.Marshal(wr, response)
+		s, err := marshaller.Marshal(response)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		wr.Write([]byte(s))
 	}))
 }
 
