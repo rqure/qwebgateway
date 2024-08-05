@@ -62,6 +62,7 @@ func (w *RestApiWorker) Init() {
 		}
 
 		// Send request to worker thread and wait for response
+		timeout := time.NewTimer(5 * time.Second)
 		w.clientCh <- client
 		select {
 		case response := <-client.ResponseCh:
@@ -76,7 +77,11 @@ func (w *RestApiWorker) Init() {
 				return
 			}
 			wr.Write([]byte(s))
-		case <-time.After(5 * time.Second):
+
+			if !timeout.Stop() {
+				<-timeout.C
+			}
+		case <-timeout.C:
 			qdb.Error("[RestApiWorker::Init::/api] Timeout waiting for response")
 			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
 			return
