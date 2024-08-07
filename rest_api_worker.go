@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
@@ -50,7 +50,8 @@ type RestApiWorker struct {
 
 func NewRestApiWorker() *RestApiWorker {
 	return &RestApiWorker{
-		clientCh: make(chan *RestApiWebClient, 1024),
+		activeClients: make(map[string]time.Time),
+		clientCh:      make(chan *RestApiWebClient, 1024),
 	}
 }
 
@@ -75,14 +76,18 @@ func (w *RestApiWorker) Init() {
 		w.clientCh <- client
 		select {
 		case response := <-client.ResponseCh:
-			b, err := json.Marshal(response)
+			// Send response back to client
+			marshaller := &jsonpb.MarshalOptions{
+				EmitUnpopulated:   true,
+				EmitDefaultValues: true,
+			}
+			s, err := marshaller.Marshal(response)
 			if err != nil {
 				qdb.Error("[RestApiWorker::Init::/make-client-id] Failed to marshal response: %v", err)
 				http.Error(wr, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			wr.Write(b)
+			wr.Write([]byte(s))
 
 			if !timeout.Stop() {
 				<-timeout.C
@@ -107,8 +112,7 @@ func (w *RestApiWorker) Init() {
 			return
 		}
 
-		rBody := make([]byte, r.ContentLength)
-		_, err := r.Body.Read(rBody)
+		rBody, err := io.ReadAll(r.Body)
 		if err != nil {
 			qdb.Error("[RestApiWorker::Init::/api] Failed to read request body: %v", err)
 			http.Error(wr, err.Error(), http.StatusBadRequest)
