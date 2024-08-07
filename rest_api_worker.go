@@ -694,10 +694,15 @@ func (w *RestApiWorker) DoWork() {
 		case client := <-w.clientCh:
 			if client.IsNewClient {
 				w.activeClients[client.Id()] = time.Now()
+				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
+				client.Write(client.Request)
 			} else if _, ok := w.activeClients[client.Id()]; ok {
+				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				w.onRequest(client)
 			} else {
-				// TODO: Don't accept requests from unknown clients
+				client.Request.Header.AuthenticationStatus = qdb.WebHeader_UNAUTHENTICATED
+				client.Request.Payload = nil
+				client.Write(client.Request)
 			}
 		default:
 			return
