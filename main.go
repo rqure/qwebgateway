@@ -59,6 +59,8 @@ func main() {
 	webServiceWorker.Signals.ClientConnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientConnected))
 	webServiceWorker.Signals.ClientDisconnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientDisconnected))
 	restApiWorker.Signals.Received.Connect(qdb.SlotWithArgs(runtimeWorker.OnNewClientMessage))
+	restApiWorker.Signals.ClientConnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientConnected))
+	restApiWorker.Signals.ClientDisconnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientDisconnected))
 
 	// Create a new application configuration
 	config := qdb.ApplicationConfig{

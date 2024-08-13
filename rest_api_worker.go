@@ -39,7 +39,9 @@ func (c *RestApiWebClient) Close() {
 }
 
 type RestApiWorkerSignals struct {
-	Received qdb.Signal
+	ClientConnected    qdb.Signal
+	ClientDisconnected qdb.Signal
+	Received           qdb.Signal
 }
 
 type RestApiWorker struct {
@@ -690,6 +692,7 @@ func (w *RestApiWorker) DoWork() {
 	for clientId, lastRequestTime := range w.activeClients {
 		if time.Since(lastRequestTime) > 5*time.Second {
 			delete(w.activeClients, clientId)
+			w.Signals.ClientDisconnected.Emit(clientId)
 		}
 	}
 
@@ -698,6 +701,7 @@ func (w *RestApiWorker) DoWork() {
 		case client := <-w.clientCh:
 			if client.IsNewClient {
 				w.activeClients[client.Id()] = time.Now()
+				w.Signals.ClientConnected.Emit(client.Id())
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				client.Write(client.Request)
 			} else if _, ok := w.activeClients[client.Id()]; ok {
