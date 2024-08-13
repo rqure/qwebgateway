@@ -705,6 +705,7 @@ func (w *RestApiWorker) DoWork() {
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				client.Write(client.Request)
 			} else if _, ok := w.activeClients[client.Id()]; ok {
+				w.activeClients[client.Id()] = time.Now()
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				w.onRequest(client)
 			} else {
