@@ -701,7 +701,7 @@ func (w *RestApiWorker) DoWork() {
 		case client := <-w.clientCh:
 			if client.IsNewClient {
 				w.activeClients[client.Id()] = time.Now()
-				w.Signals.ClientConnected.Emit(client.Id())
+				w.Signals.ClientConnected.Emit(client)
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				client.Write(client.Request)
 			} else if _, ok := w.activeClients[client.Id()]; ok {
