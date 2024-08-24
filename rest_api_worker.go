@@ -691,6 +691,7 @@ func (w *RestApiWorker) Deinit() {
 func (w *RestApiWorker) DoWork() {
 	for clientId, lastRequestTime := range w.activeClients {
 		if time.Since(lastRequestTime) > 5*time.Second {
+			qdb.Info("[RestApiWorker::DoWork] Client %v has been inactive for 5 seconds, disconnecting", clientId)
 			delete(w.activeClients, clientId)
 			w.Signals.ClientDisconnected.Emit(clientId)
 		}

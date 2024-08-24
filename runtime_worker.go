@@ -9,16 +9,16 @@ type RuntimeWorker struct {
 	db                qdb.IDatabase
 	dbConnectionState qdb.ConnectionState_ConnectionStateEnum
 
-	clientIdToClient    map[string]qdb.IWebClient
-	clientSubscriptions map[string]map[string][]*qdb.DatabaseNotification
+	clientNotificationQueue  map[string]map[string][]*qdb.DatabaseNotification
+	clientNotificationTokens map[string]map[string]qdb.INotificationToken
 }
 
 func NewRuntimeWorker(db qdb.IDatabase) *RuntimeWorker {
 	return &RuntimeWorker{
-		db:                  db,
-		dbConnectionState:   qdb.ConnectionState_DISCONNECTED,
-		clientIdToClient:    make(map[string]qdb.IWebClient),
-		clientSubscriptions: make(map[string]map[string][]*qdb.DatabaseNotification),
+		db:                       db,
+		dbConnectionState:        qdb.ConnectionState_DISCONNECTED,
+		clientNotificationQueue:  make(map[string]map[string][]*qdb.DatabaseNotification),
+		clientNotificationTokens: make(map[string]map[string]qdb.INotificationToken),
 	}
 }
 
@@ -36,14 +36,19 @@ func (w *RuntimeWorker) DoWork() {
 
 func (w *RuntimeWorker) OnClientConnected(args ...interface{}) {
 	client := args[0].(qdb.IWebClient)
-	w.clientIdToClient[client.Id()] = client
-	w.clientSubscriptions[client.Id()] = make(map[string][]*qdb.DatabaseNotification)
+	w.clientNotificationQueue[client.Id()] = make(map[string][]*qdb.DatabaseNotification)
+	w.clientNotificationTokens[client.Id()] = make(map[string]qdb.INotificationToken)
 }
 
 func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
 	clientId := args[0].(string)
-	delete(w.clientIdToClient, clientId)
-	delete(w.clientSubscriptions, clientId)
+
+	for _, token := range w.clientNotificationTokens[clientId] {
+		token.Unbind()
+	}
+
+	delete(w.clientNotificationQueue, clientId)
+	delete(w.clientNotificationTokens, clientId)
 }
 
 func (w *RuntimeWorker) OnNewClientMessage(args ...interface{}) {
@@ -74,9 +79,9 @@ func (w *RuntimeWorker) OnDatabaseDisconnected() {
 }
 
 func (w *RuntimeWorker) onProcessNotifications(notification *qdb.DatabaseNotification) {
-	for clientId := range w.clientSubscriptions {
-		if w.clientSubscriptions[clientId][notification.Token] != nil {
-			w.clientSubscriptions[clientId][notification.Token] = append(w.clientSubscriptions[clientId][notification.Token], notification)
+	for clientId := range w.clientNotificationQueue {
+		if w.clientNotificationQueue[clientId][notification.Token] != nil {
+			w.clientNotificationQueue[clientId][notification.Token] = append(w.clientNotificationQueue[clientId][notification.Token], notification)
 		}
 	}
 }
@@ -135,8 +140,13 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qdb.IWebClie
 	for _, request := range request.Requests {
 		token := w.db.Notify(request, qdb.NewNotificationCallback(w.onProcessNotifications))
 
-		if w.clientSubscriptions[client.Id()][token.Id()] == nil {
-			w.clientSubscriptions[client.Id()][token.Id()] = make([]*qdb.DatabaseNotification, 0)
+		if w.clientNotificationTokens[client.Id()][token.Id()] != nil {
+			w.clientNotificationTokens[client.Id()][token.Id()].Unbind()
+			w.clientNotificationTokens[client.Id()][token.Id()] = token
+		}
+
+		if w.clientNotificationQueue[client.Id()][token.Id()] == nil {
+			w.clientNotificationQueue[client.Id()][token.Id()] = make([]*qdb.DatabaseNotification, 0)
 		}
 
 		qdb.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification: %v for client %s", token, client.Id())
@@ -165,8 +175,8 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qdb.IWebCl
 	for _, token := range request.Tokens {
 		w.db.Unnotify(token)
 
-		if w.clientSubscriptions[client.Id()][token] != nil {
-			delete(w.clientSubscriptions[client.Id()], token)
+		if w.clientNotificationQueue[client.Id()][token] != nil {
+			delete(w.clientNotificationQueue[client.Id()], token)
 		}
 
 		qdb.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
@@ -191,9 +201,9 @@ func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client qdb.IWebClient, 
 		return
 	}
 
-	for token, notifications := range w.clientSubscriptions[client.Id()] {
+	for token, notifications := range w.clientNotificationQueue[client.Id()] {
 		response.Notifications = append(response.Notifications, notifications...)
-		w.clientSubscriptions[client.Id()][token] = make([]*qdb.DatabaseNotification, 0)
+		w.clientNotificationQueue[client.Id()][token] = make([]*qdb.DatabaseNotification, 0)
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
