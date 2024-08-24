@@ -79,14 +79,6 @@ func (w *RuntimeWorker) OnDatabaseDisconnected() {
 	w.dbConnectionState = qdb.ConnectionState_DISCONNECTED
 }
 
-func (w *RuntimeWorker) onProcessNotifications(notification *qdb.DatabaseNotification) {
-	for clientId := range w.clientNotificationQueue {
-		if w.clientNotificationQueue[clientId][notification.Token] != nil {
-			w.clientNotificationQueue[clientId][notification.Token] = append(w.clientNotificationQueue[clientId][notification.Token], notification)
-		}
-	}
-}
-
 func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
 	request := new(qdb.WebRuntimeDatabaseRequest)
 	response := new(qdb.WebRuntimeDatabaseResponse)
@@ -139,18 +131,22 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qdb.IWebClie
 	}
 
 	for _, request := range request.Requests {
-		token := w.db.Notify(request, qdb.NewNotificationCallback(w.onProcessNotifications))
+		token := w.db.Notify(request, qdb.NewNotificationCallback(func(notification *qdb.DatabaseNotification) {
+			if w.clientNotificationQueue[client.Id()][notification.Token] != nil {
+				w.clientNotificationQueue[client.Id()][notification.Token] = append(w.clientNotificationQueue[client.Id()][notification.Token], notification)
+			}
+		}))
 
 		if w.clientNotificationTokens[client.Id()][token.Id()] != nil {
 			w.clientNotificationTokens[client.Id()][token.Id()].Unbind()
-			w.clientNotificationTokens[client.Id()][token.Id()] = token
 		}
+		w.clientNotificationTokens[client.Id()][token.Id()] = token
 
 		if w.clientNotificationQueue[client.Id()][token.Id()] == nil {
 			w.clientNotificationQueue[client.Id()][token.Id()] = make([]*qdb.DatabaseNotification, 0)
 		}
 
-		qdb.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification: %v for client %s", token, client.Id())
+		qdb.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification token '%v' for client %s", token.Id(), client.Id())
 
 		response.Tokens = append(response.Tokens, token.Id())
 	}
@@ -174,7 +170,10 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qdb.IWebCl
 	}
 
 	for _, token := range request.Tokens {
-		w.db.Unnotify(token)
+		if w.clientNotificationTokens[client.Id()][token] != nil {
+			w.clientNotificationTokens[client.Id()][token].Unbind()
+			delete(w.clientNotificationTokens[client.Id()], token)
+		}
 
 		if w.clientNotificationQueue[client.Id()][token] != nil {
 			delete(w.clientNotificationQueue[client.Id()], token)
