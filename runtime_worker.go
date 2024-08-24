@@ -44,6 +44,7 @@ func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
 	clientId := args[0].(string)
 
 	for _, token := range w.clientNotificationTokens[clientId] {
+		qdb.Info("[RuntimeWorker::OnClientDisconnected] Unbinding notification token: %v", token)
 		token.Unbind()
 	}
 
