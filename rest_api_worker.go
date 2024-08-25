@@ -23,6 +23,10 @@ type RestApiWebClient struct {
 }
 
 func (c *RestApiWebClient) Id() string {
+	if c.Request == nil || c.Request.Header == nil {
+		return ""
+	}
+
 	return c.Request.Header.Id
 }
 
@@ -691,7 +695,7 @@ func (w *RestApiWorker) Deinit() {
 func (w *RestApiWorker) DoWork() {
 	for clientId, lastRequestTime := range w.activeClients {
 		if time.Since(lastRequestTime) > 5*time.Second {
-			qdb.Info("[RestApiWorker::DoWork] Client %v has been inactive for 5 seconds, disconnecting", clientId)
+			qdb.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for 5 seconds, disconnecting", clientId)
 			delete(w.activeClients, clientId)
 			w.Signals.ClientDisconnected.Emit(clientId)
 		}
@@ -701,6 +705,7 @@ func (w *RestApiWorker) DoWork() {
 		select {
 		case client := <-w.clientCh:
 			if client.IsNewClient {
+				qdb.Info("[RestApiWorker::DoWork] New client connected: %v", client.Id())
 				w.activeClients[client.Id()] = time.Now()
 				w.Signals.ClientConnected.Emit(client)
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
@@ -710,6 +715,14 @@ func (w *RestApiWorker) DoWork() {
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				w.onRequest(client)
 			} else {
+				if client.Request == nil {
+					client.Request = &qdb.WebMessage{}
+				}
+
+				if client.Request.Header == nil {
+					client.Request.Header = &qdb.WebHeader{}
+				}
+
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_UNAUTHENTICATED
 				client.Request.Payload = nil
 				client.Write(client.Request)
