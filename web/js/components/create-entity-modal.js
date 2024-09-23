@@ -36,8 +36,7 @@ function registerCreateEntityModalComponent(app, context) {
             context.qDatabaseInteractor
                 .getEventManager()
                 .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ALL_ENTITY_TYPES, this.onQueryAllEntityTypes.bind(this));
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
                 entityName: "",
@@ -50,16 +49,20 @@ function registerCreateEntityModalComponent(app, context) {
         },
         
         mounted() {
-            this.database.queryAllEntityTypes();
-
-            this.isDatabaseConnected = this.database.isConnected();
+            if (this.database.isConnected()) {
+                this.onDatabaseConnected();
+            }
         },
 
         methods: {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
+                
                 if (this.isDatabaseConnected) {
-                    this.database.queryAllEntityTypes();
+                    this.database
+                        .queryAllEntityTypes()
+                        .then(event => this.onQueryAllEntityTypes(event))
+                        .catch(error => qError(`[CreateEntityModal::onDatabaseConnected] ${error}`));
                 }
             },
 
@@ -68,12 +71,16 @@ function registerCreateEntityModalComponent(app, context) {
             },
 
             onQueryAllEntityTypes(event) {
+                // sorted alphabetically
+                event.entityTypes.sort();
                 this.availableEntityTypes = event.entityTypes;
             },
 
             onCreateButtonPressed() {
                 const me = this;
-                this.database.createEntity(me.parentId, me.entityName, me.entityType);
+                this.database
+                    .createEntity(me.parentId, me.entityName, me.entityType)
+                    .catch(error => qError(`[CreateEntityModal::onCreateButtonPressed] Failed to create entity: ${error}`));
                 
                 me.entityName = "";
                 me.entityType = "";

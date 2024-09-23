@@ -40,10 +40,7 @@ function registerCreateTypeModalComponent(app, context) {
             context.qDatabaseInteractor
                 .getEventManager()
                 .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ALL_FIELDS, this.onQueryAllFields.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ALL_ENTITY_TYPES, this.onQueryAllEntityTypes.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, this.onQueryEntitySchema.bind(this));
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
                 entityType: "",
@@ -56,11 +53,8 @@ function registerCreateTypeModalComponent(app, context) {
         },
 
         mounted() {
-            this.isDatabaseConnected = this.database.isConnected();
-
-            if (this.isDatabaseConnected) {
-                this.database.queryAllEntityTypes();
-                this.database.queryAllFields();
+            if (this.database.isConnected()) {
+                this.onDatabaseConnected();
             }
         },
 
@@ -68,8 +62,15 @@ function registerCreateTypeModalComponent(app, context) {
             onDatabaseConnected() {
                 this.isDatabaseConnected = true;
 
-                this.database.queryAllEntityTypes();
-                this.database.queryAllFields();
+                this.database
+                    .queryAllEntityTypes()
+                    .then(event => this.onQueryAllEntityTypes(event))
+                    .catch(error => qError(`[CreateTypeModal::onDatabaseConnected] ${error}`));
+
+                this.database
+                    .queryAllFields()
+                    .then(event => this.onQueryAllFields(event))
+                    .catch(error => qError(`[CreateTypeModal::onDatabaseConnected] ${error}`));
             },
 
             onDatabaseDisconnected() {
@@ -82,6 +83,7 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             onQueryAllEntityTypes(event) {
+                event.entityTypes.sort();
                 this.allEntityTypes = event.entityTypes;
             },
 
@@ -107,7 +109,10 @@ function registerCreateTypeModalComponent(app, context) {
                     return;
                 }
 
-                this.database.queryEntitySchema(this.entityType);
+                this.database
+                    .queryEntitySchema(this.entityType)
+                    .then(event => this.onQueryEntitySchema(event))
+                    .catch(error => qError(`[CreateTypeModal::onEntityTypeChange] ${error}`));
             },
 
             onCancelButtonPressed() {
@@ -120,7 +125,9 @@ function registerCreateTypeModalComponent(app, context) {
                 request.setName(this.entityType);
                 request.setFieldsList(this.entityFields);
 
-                this.database.createOrUpdateEntityType(this.entityType, this.entityFields.slice());
+                this.database
+                    .createOrUpdateEntityType(this.entityType, this.entityFields.slice())
+                    .catch(error => qError(`[CreateTypeModal::onCreateButtonPressed] Failed to create entity type: ${error}`));
                 
                 this.entityType = "";
                 this.entityFields = [];

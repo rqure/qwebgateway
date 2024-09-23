@@ -33,7 +33,9 @@ function registerRestoreModalComponent(app, context) {
         },
 
         mounted() {
-            this.isDatabaseConnected = this.database.isConnected();
+            if (this.database.isConnected()) {
+                this.onDatabaseConnected();
+            }
         },
 
         methods: {
@@ -64,8 +66,10 @@ function registerRestoreModalComponent(app, context) {
             },
 
             onRestoreButtonPressed() {
-                const me = this;
-                me.database.restoreSnapshot(me.snapshot);
+                this.database
+                    .restoreSnapshot(me.snapshot)
+                    .catch(error => qError(`[RestoreModal::onRestoreButtonPressed] Failed to restore database: ${error}`));
+                
                 this.snapshot = null;
             }
         },

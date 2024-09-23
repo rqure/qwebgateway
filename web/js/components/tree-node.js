@@ -37,13 +37,7 @@ function registerTreeNodeComponent(app, context) {
             context.qDatabaseInteractor
                 .getEventManager()
                 .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ROOT_ENTITY_ID, this.onQueryRootEntityId.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY, this.onQueryEntity.bind(this))
-                .addEventListener(DATABASE_EVENTS.QUERY_ENTITY_SCHEMA, this.onQueryEntitySchema.bind(this))
-                .addEventListener(DATABASE_EVENTS.READ_RESULT, this.onRead.bind(this))
-                .addEventListener(DATABASE_EVENTS.REGISTER_NOTIFICATION_RESPONSE, this.onRegisterNotification.bind(this))
-                .addEventListener(DATABASE_EVENTS.NOTIFICATION, this.onNotification.bind(this));
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
                 selectedNode: context.selectedNode,
@@ -58,9 +52,7 @@ function registerTreeNodeComponent(app, context) {
         },
 
         created() {
-            this.isDatabaseConnected = this.database.isConnected();
-
-            if (this.isDatabaseConnected) {
+            if (this.database.isConnected()) {
                 this.onDatabaseConnected();
             }
         },
@@ -70,9 +62,15 @@ function registerTreeNodeComponent(app, context) {
                 this.isDatabaseConnected = true;
 
                 if (this.localEntityId === "") {
-                    this.database.queryRootEntityId();
+                    this.database
+                        .queryRootEntityId()
+                        .then(event => this.onQueryRootEntityId(event))
+                        .catch(error => qError(`[TreeNode::onDatabaseConnected] Failed to query root entity ID: ${error}`));
                 } else {
-                    this.database.queryEntity(this.localEntityId);
+                    this.database
+                        .queryEntity(this.localEntityId)
+                        .then(event => this.onQueryEntity(event))
+                        .catch(error => qError(`[TreeNode::onDatabaseConnected] Failed to query entity ${this.localEntityId}: ${error}`));
                 }
             },
 
@@ -83,11 +81,18 @@ function registerTreeNodeComponent(app, context) {
             onQueryRootEntityId(event) {
                 if (this.localEntityId === "") {
                     this.localEntityId = event.rootId;
-                    this.database.queryEntity(this.localEntityId);
+
+                    this.database
+                        .queryEntity(this.localEntityId)
+                        .then(event => this.onQueryEntity(event))
+                        .catch(error => qError(`[TreeNode::onQueryRootEntityId] Failed to query entity ${this.localEntityId}: ${error}`));
                 
-                    this.database.registerNotifications([
-                        {type: "Root", field: "SchemaUpdateTrigger"},
-                    ], "Root");
+                    this.database
+                        .registerNotifications([
+                            {type: "Root", field: "SchemaUpdateTrigger"},
+                        ], this.onSchemaUpdate.bind(this))
+                        .then(event => this.onRegisterNotification(event))
+                        .catch(error => qError(`[TreeNode::onQueryRootEntityId] Failed to register notifications for entity ${this.localEntityId}: ${error}`));
                 }
             },
 
@@ -102,24 +107,32 @@ function registerTreeNodeComponent(app, context) {
             onQueryEntitySchema(event) {
                 if (this.localEntityType === event.schema.getName()) {
                     this.selectedNode.entitySchema = event.schema;
-                    this.database.read(event.schema.getFieldsList().map(f => {
-                        return {
-                            id: this.selectedNode.entityId,
-                            field: f
-                        };
-                    }));
+                    this.database
+                        .read(event.schema.getFieldsList().map(f => {
+                            return {
+                                id: this.selectedNode.entityId,
+                                field: f
+                            };
+                        }))
+                        .then(results => this.onRead(results))
+                        .catch(error => qError(`[TreeNode::onQueryEntitySchema] Failed to read entity ${this.selectedNode.entityId}: ${error}`));
 
                     if (this.selectedNode.notificationTokens.length > 0) {
-                        this.database.unregisterNotifications(this.selectedNode.notificationTokens.slice());
-                        this.selectedNode.notificationTokens = [];
+                        this.database
+                            .unregisterNotifications(this.selectedNode.notificationTokens.slice())
+                            .then(event => this.selectedNode.notificationTokens = [])
+                            .catch(error => qError(`[TreeNode::onQueryEntitySchema] Failed to unregister notifications for entity ${this.selectedNode.entityId}: ${error}`));
                     }
 
-                    this.database.registerNotifications(event.schema.getFieldsList().map(f => {
-                        return {
-                            id: this.selectedNode.entityId,
-                            field: f
-                        };
-                    }), this.selectedNode.entityId);
+                    this.database
+                        .registerNotifications(event.schema.getFieldsList().map(f => {
+                            return {
+                                id: this.selectedNode.entityId,
+                                field: f
+                            };
+                        }), this.onNotification.bind(this))
+                        .then(event => this.onRegisterNotification(event))
+                        .catch(error => qError(`[TreeNode::onQueryEntitySchema] Failed to register notifications for entity ${this.selectedNode.entityId}: ${error}`));
                 }
             },
 
@@ -157,7 +170,7 @@ function registerTreeNodeComponent(app, context) {
                                 });
                         }
                     } catch (e) {
-                        qError(`[tree-node::onRead] Failed to process read response: ${e}`);
+                        qError(`[TreeNode::onRead] Failed to process read response: ${e}`);
                         continue;
                     }
                 }
@@ -173,28 +186,31 @@ function registerTreeNodeComponent(app, context) {
                 this.selectedNode.entityType = this.localEntityType;
                 this.selectedNode.entityFields = {};
 
-                this.database.queryEntitySchema(this.localEntityType);
+                this.database
+                    .queryEntitySchema(this.localEntityType)
+                    .then(event => this.onQueryEntitySchema(event))
+                    .catch(error => qError(`[TreeNode::onFocus] Failed to query schema for entity ${this.localEntityId}: ${error}`));
             },
 
             onRegisterNotification(event) {
-                if (this.selectedNode.entityId !== event.responseIdentifier) {
-                    return;
-                }
-
                 this.selectedNode.notificationTokens = event.tokens;
             },
 
-            onNotification(event) {
+            onSchemaUpdate(event) {
                 if (event.notification.getCurrent().getName() === "SchemaUpdateTrigger" && !this.selectedNode.notificationTokens.includes(event.notification.getToken()) ) {
                     // Received a SchemaUpdateTrigger notification, re-query the schema
-                    this.database.queryEntity(this.localEntityId);
-                    return;
+                    this.database
+                        .queryEntity(this.localEntityId)
+                        .then(event => this.onQueryEntity(event))
+                        .catch(error => qError(`[TreeNode::onSchemaUpdate] Failed to query entity ${this.localEntityId}: ${error}`));
                 }
+            },
 
+            onNotification(event) {
                 const field = event.notification.getCurrent();
 
                 if (this.selectedNode.entityId !== field.getId()) {
-                    qWarn(`[tree-node::onNotification] Received notification for entity ${event.notification.getCurrent().getId()} but selected entity is ${this.selectedNode.entityId}`);
+                    qWarn(`[TreeNode::onNotification] Received notification for entity ${event.notification.getCurrent().getId()} but selected entity is ${this.selectedNode.entityId}`);
                     return;
                 }
                 

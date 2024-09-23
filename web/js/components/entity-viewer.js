@@ -74,7 +74,9 @@ function registerEntityViewerComponent(app, context) {
         },
 
         mounted() {
-            this.isDatabaseConnected = this.database.isConnected();
+            if (this.database.isConnected()) {
+                this.onDatabaseConnected();
+            }
         },
 
         methods: {
@@ -118,7 +120,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onBoolFieldChange] ${error}`));
             },
 
             onIntFieldChange(field) {
@@ -138,7 +140,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onIntFieldChange] ${error}`));
             },
 
             onFloatFieldChange(field) {
@@ -158,7 +160,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onFloatFieldChange] ${error}`));
             },
 
             onStringFieldChange(field) {
@@ -173,7 +175,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onStringFieldChange] ${error}`));
             },
 
             onTimestampFieldChanged(field) {
@@ -188,7 +190,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onTimestampFieldChanged] ${error}`));
             },
 
             onEntityReferenceChanged(field) {
@@ -203,7 +205,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onEntityReferenceChanged] ${error}`));
             },
 
             onEnumFieldChanged(field) {
@@ -218,7 +220,7 @@ function registerEntityViewerComponent(app, context) {
                         field: field.name,
                         value: valueAsAny
                     }
-                ]);
+                ]).catch(error => qError(`[EntityViewer::onEnumFieldChanged] ${error}`));
             },
 
             onFileSelected(event, field) {
@@ -252,7 +254,7 @@ function registerEntityViewerComponent(app, context) {
                             field: field.name,
                             value: valueAsAny
                         }
-                    ]);
+                    ]).catch(error => qError(`[EntityViewer::onFileSelected] ${error}`));
                 };
                 reader.readAsArrayBuffer(file);
             },

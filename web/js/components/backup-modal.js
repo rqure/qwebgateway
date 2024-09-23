@@ -23,8 +23,7 @@ function registerBackupModalComponent(app, context) {
             context.qDatabaseInteractor
                 .getEventManager()
                 .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.CREATE_SNAPSHOT, this.onCreateSnapshot.bind(this));
+                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
                 blobUrl: "",
@@ -34,7 +33,9 @@ function registerBackupModalComponent(app, context) {
         },
 
         mounted() {
-            this.isDatabaseConnected = this.database.isConnected();
+            if (this.database.isConnected()) {
+                this.onDatabaseConnected();
+            }            
         },
 
         methods: {
@@ -60,7 +61,10 @@ function registerBackupModalComponent(app, context) {
             },
 
             onBackupButtonClicked() {
-                this.database.createSnapshot();
+                this.database
+                    .createSnapshot()
+                    .then(event => this.onCreateSnapshot(event))
+                    .catch(error => qError(`[BackupModal::onBackupButtonClicked] Failed to create database snapshot: ${error}`));
             }
         },
         

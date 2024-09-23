@@ -36,7 +36,9 @@ function registerDeleteEntityModalComponent(app, context) {
         },
 
         mounted() {
-            this.isDatabaseConnected = this.database.isConnected();
+            if (this.database.isConnected()) {
+                this.onDatabaseConnected();
+            }
         },
 
         methods: {
@@ -54,7 +56,9 @@ function registerDeleteEntityModalComponent(app, context) {
             },
 
             onDeleteButtonPressed() {
-                this.database.deleteEntity(this.entityId);
+                this.database
+                    .deleteEntity(this.entityId)
+                    .catch(error => qError(`[DeleteEntityModal::onDeleteButtonPressed] ${error}`));
             }
         },
 
