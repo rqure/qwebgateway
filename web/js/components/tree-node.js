@@ -196,8 +196,8 @@ function registerTreeNodeComponent(app, context) {
                 this.selectedNode.notificationTokens = event.tokens;
             },
 
-            onSchemaUpdate(event) {
-                if (event.notification.getCurrent().getName() === "SchemaUpdateTrigger" && !this.selectedNode.notificationTokens.includes(event.notification.getToken()) ) {
+            onSchemaUpdate(notification) {
+                if (notification.getCurrent().getName() === "SchemaUpdateTrigger" && !this.selectedNode.notificationTokens.includes(notification.getToken()) ) {
                     // Received a SchemaUpdateTrigger notification, re-query the schema
                     this.database
                         .queryEntity(this.localEntityId)
@@ -206,11 +206,11 @@ function registerTreeNodeComponent(app, context) {
                 }
             },
 
-            onNotification(event) {
-                const field = event.notification.getCurrent();
+            onNotification(notification) {
+                const field = notification.getCurrent();
 
                 if (this.selectedNode.entityId !== field.getId()) {
-                    qWarn(`[TreeNode::onNotification] Received notification for entity ${event.notification.getCurrent().getId()} but selected entity is ${this.selectedNode.entityId}`);
+                    qWarn(`[TreeNode::onNotification] Received notification for entity ${notification.getCurrent().getId()} but selected entity is ${this.selectedNode.entityId}`);
                     return;
                 }
                 
