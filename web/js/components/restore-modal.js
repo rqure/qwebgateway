@@ -67,7 +67,7 @@ function registerRestoreModalComponent(app, context) {
 
             onRestoreButtonPressed() {
                 this.database
-                    .restoreSnapshot(me.snapshot)
+                    .restoreSnapshot(this.snapshot)
                     .catch(error => qError(`[RestoreModal::onRestoreButtonPressed] Failed to restore database: ${error}`));
                 
                 this.snapshot = null;
