@@ -12,14 +12,23 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type MakeClientIdResponse struct {
+const DefaultClientTimeout = 5 * time.Second
+const DefaultRequestTimeout = 5 * time.Second
+
+type ClientIdResponse struct {
 	ClientId string
 }
 
 type RestApiWebClient struct {
-	Request     *qdb.WebMessage
-	ResponseCh  chan *qdb.WebMessage
-	IsNewClient bool
+	Request    *qdb.WebMessage
+	ResponseCh chan *qdb.WebMessage
+	Token      *RestApiWebClientToken
+}
+
+type RestApiWebClientToken struct {
+	ClientId string
+	Timeout  time.Duration
+	ExpireAt time.Time
 }
 
 func (c *RestApiWebClient) Id() string {
@@ -49,21 +58,43 @@ type RestApiWorkerSignals struct {
 }
 
 type RestApiWorker struct {
-	activeClients map[string]time.Time
+	activeClients map[string]*RestApiWebClientToken
 	clientCh      chan *RestApiWebClient
 	Signals       RestApiWorkerSignals
 }
 
 func NewRestApiWorker() *RestApiWorker {
 	return &RestApiWorker{
-		activeClients: make(map[string]time.Time),
+		activeClients: make(map[string]*RestApiWebClientToken),
 		clientCh:      make(chan *RestApiWebClient, 1024),
 	}
 }
 
 func (w *RestApiWorker) Init() {
-	http.Handle("/make-client-id", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		response := &MakeClientIdResponse{
+	http.HandleFunc("/make-client-id", func(wr http.ResponseWriter, r *http.Request) {
+		clientTimeout := DefaultClientTimeout
+		clientTimeoutStr := r.URL.Query().Get("clientTimeout")
+		if clientTimeoutStr != "" {
+			qdb.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", clientTimeoutStr)
+			if timeout, err := time.ParseDuration(clientTimeoutStr); err == nil {
+				clientTimeout = timeout
+			} else {
+				qdb.Error("[RestApiWorker::Init::/make-client-id] Invalid clientTimeout: %v", err)
+			}
+		}
+
+		requestTimeout := DefaultRequestTimeout
+		requestTimeoutStr := r.URL.Query().Get("requestTimeout")
+		if requestTimeoutStr != "" {
+			qdb.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
+			if timeout, err := time.ParseDuration(requestTimeoutStr); err == nil {
+				requestTimeout = timeout
+			} else {
+				qdb.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
+			}
+		}
+
+		response := &ClientIdResponse{
 			ClientId: uuid.NewString(),
 		}
 
@@ -74,11 +105,15 @@ func (w *RestApiWorker) Init() {
 					Timestamp: timestamppb.Now(),
 				},
 			},
-			ResponseCh:  make(chan *qdb.WebMessage, 1),
-			IsNewClient: true,
+			ResponseCh: make(chan *qdb.WebMessage, 1),
+			Token: &RestApiWebClientToken{
+				ClientId: response.ClientId,
+				Timeout:  clientTimeout,
+				ExpireAt: time.Now().Add(clientTimeout),
+			},
 		}
 
-		timeout := time.NewTimer(5 * time.Second)
+		timeout := time.NewTimer(requestTimeout)
 		w.clientCh <- client
 		select {
 		case response := <-client.ResponseCh:
@@ -103,7 +138,7 @@ func (w *RestApiWorker) Init() {
 			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
 			return
 		}
-	}))
+	})
 
 	http.Handle("/api", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
 		client := &RestApiWebClient{
@@ -132,8 +167,19 @@ func (w *RestApiWorker) Init() {
 			return
 		}
 
+		requestTimeout := DefaultRequestTimeout
+		requestTimeoutStr := r.URL.Query().Get("requestTimeout")
+		if requestTimeoutStr != "" {
+			qdb.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
+			if timeout, err := time.ParseDuration(requestTimeoutStr); err == nil {
+				requestTimeout = timeout
+			} else {
+				qdb.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
+			}
+		}
+
 		// Send request to worker thread and wait for response
-		timeout := time.NewTimer(5 * time.Second)
+		timeout := time.NewTimer(requestTimeout)
 		w.clientCh <- client
 		select {
 		case response := <-client.ResponseCh:
@@ -693,9 +739,9 @@ func (w *RestApiWorker) Deinit() {
 }
 
 func (w *RestApiWorker) DoWork() {
-	for clientId, lastRequestTime := range w.activeClients {
-		if time.Since(lastRequestTime) > 5*time.Second {
-			qdb.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for 5 seconds, disconnecting", clientId)
+	for clientId, token := range w.activeClients {
+		if time.Since(token.ExpireAt) > 0 {
+			qdb.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for %v, disconnecting", clientId, token.Timeout)
 			delete(w.activeClients, clientId)
 			w.Signals.ClientDisconnected.Emit(clientId)
 		}
@@ -704,14 +750,14 @@ func (w *RestApiWorker) DoWork() {
 	for {
 		select {
 		case client := <-w.clientCh:
-			if client.IsNewClient {
+			if client.Token != nil {
 				qdb.Info("[RestApiWorker::DoWork] New client connected: %v", client.Id())
-				w.activeClients[client.Id()] = time.Now()
+				w.activeClients[client.Id()] = client.Token
 				w.Signals.ClientConnected.Emit(client)
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				client.Write(client.Request)
-			} else if _, ok := w.activeClients[client.Id()]; ok {
-				w.activeClients[client.Id()] = time.Now()
+			} else if token, ok := w.activeClients[client.Id()]; ok {
+				token.ExpireAt = time.Now().Add(token.Timeout)
 				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
 				w.onRequest(client)
 			} else {
