@@ -215,17 +215,19 @@ function registerTreeNodeComponent(app, context) {
                 }
                 
                 const protoClass = field.getValue().getTypeName().split('.').reduce((o,i)=> o[i], proto);
-                this.selectedNode.entityFields[field.getName()] = {
-                    name: field.getName(),
-                    value: protoClass.deserializeBinary(field.getValue().getValue_asU8()).getRaw(),
-                    typeClass: protoClass,
-                    typeName: field.getValue().getTypeName(),
-                    writeTime: field.getWritetime().toDate().toLocaleString( 'sv-SE', {
+
+                const model = this.selectedNode.entityFields[field.getName()];
+                model.typeClass = protoClass;
+                model.typeName = field.getValue().getTypeName();
+                model.name = field.getName();
+                if (model.typeName !== 'qdb.Transformation') {
+                    model.value = protoClass.deserializeBinary(field.getValue().getValue_asU8()).getRaw();
+                }
+                model.writeTime = field.getWritetime().toDate().toLocaleString( 'sv-SE', {
                             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                         } ) + "." + field.getWritetime().toDate().toLocaleString( 'sv-SE', {
                             fractionalSecondDigits: 3
-                        } )
-                };
+                        } );
 
                 if (protoClass === proto.qdb.Timestamp) {
                     this.selectedNode.entityFields[field.getName()].value = this.selectedNode.entityFields[field.getName()].value.toDate().toLocaleString( 'sv-SE', {

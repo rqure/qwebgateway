@@ -50,6 +50,9 @@ function registerEntityViewerComponent(app, context) {
         <div v-if="field.typeName === 'qdb.EntityReference'" class="col-sm-6">
             <input type="text" class="form-control" v-model="field.value" @change="onEntityReferenceChanged(field)">
         </div>
+        <div v-if="field.typeName === 'qdb.Transformation'" class="col-sm-6">
+            <textarea class="form-control" v-model="field.value" @change="onTransformationChanged(field)"></textarea>
+        </div>
         <div v-if="isEnum(field.typeClass)" class="col-sm-6">
             <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
             <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`" @change="onEnumFieldChanged(field)">
@@ -206,6 +209,21 @@ function registerEntityViewerComponent(app, context) {
                         value: valueAsAny
                     }
                 ]).catch(error => qError(`[EntityViewer::onEntityReferenceChanged] ${error}`));
+            },
+
+            onTransformationChanged(field) {
+                const value = new proto.qdb.Transformation();
+                value.setRaw(field.value);
+                const valueAsAny = new proto.google.protobuf.Any();
+                valueAsAny.pack(value.serializeBinary(), qMessageType(value));
+
+                this.database.write([
+                    {
+                        id: this.selectedNode.entityId,
+                        field: field.name,
+                        value: valueAsAny
+                    }
+                ]).catch(error => qError(`[EntityViewer::onTransformationChanged] ${error}`));
             },
 
             onEnumFieldChanged(field) {
