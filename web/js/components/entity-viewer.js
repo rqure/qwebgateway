@@ -36,7 +36,7 @@ function registerEntityViewerComponent(app, context) {
             <input type="number" class="form-control" v-model="field.value" @change="onFloatFieldChange(field)">
         </div>
         <div v-if="field.typeName === 'qdb.String'" class="col-sm-6">
-            <input type="text" class="form-control" v-model="field.value" @change="onStringFieldChange(field)">
+            <textarea class="form-control" v-model="field.value" @change="onStringFieldChange(field)"></textarea>
         </div>
         <div v-if="field.typeName === 'qdb.Timestamp'" class="col-sm-6">
             <input type="datetime-local" class="form-control" v-model="field.value" @change="onTimestampFieldChanged(field)">
