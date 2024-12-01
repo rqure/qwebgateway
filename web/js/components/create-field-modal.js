@@ -5,34 +5,42 @@ function registerCreateFieldModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Type</h5>
+                <div>
+                    <h5 class="modal-title mb-1">Create Field</h5>
+                    <small class="text-muted">Add a new field type to the database</small>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="fieldNameInput" placeholder="ExampleField" v-model="fieldName">
+                <div class="form-floating mb-4">
+                    <input type="text" class="form-control form-control-lg" 
+                           id="fieldNameInput" placeholder="ExampleField" 
+                           v-model="fieldName"
+                           autofocus>
                     <label for="fieldNameInput">Field Name</label>
                 </div>
-                <div class="form-floating mb-3">
-                    <select class="form-select form-select-lg" id="fieldTypeSelect" aria-label="Select field type" v-model="selectedFieldType">
-                        <option v-for="fieldType in availableTypes" :value="fieldType">{{fieldType}}</option>
+                <div class="form-floating">
+                    <select class="form-select form-select-lg" 
+                           id="fieldTypeSelect" 
+                           v-model="selectedFieldType">
+                        <option value="" disabled selected>Choose a field type...</option>
+                        <option v-for="fieldType in availableTypes" :value="fieldType">
+                            {{fieldType}}
+                        </option>
                     </select>
                     <label for="fieldTypeSelect">Field Type</label>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button"
-                    class="btn btn-secondary"
-                    data-bs-dismiss="modal"
-                    @click="onCancelButtonPressed">
+                <button type="button" class="btn btn-outline-secondary" 
+                        data-bs-dismiss="modal" @click="onCancelButtonPressed">
                     Cancel
                 </button>
-                <button type="button"
-                    class="btn btn-success"
-                    data-bs-dismiss="modal"
-                    @click="onCreateButtonPressed"
-                    :disabled="isCreateDisabled">
-                    Create
+                <button type="button" class="btn btn-primary" 
+                        data-bs-dismiss="modal" 
+                        @click="onCreateButtonPressed" 
+                        :disabled="isCreateDisabled">
+                    <i class="bi bi-plus-circle me-2"></i>Create Field
                 </button>
             </div>
         </div>

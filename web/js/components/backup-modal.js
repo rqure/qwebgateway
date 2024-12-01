@@ -5,15 +5,25 @@ function registerBackupModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Database Backup</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @click="onCancelButtonClicked"></button>
+                <div>
+                    <h5 class="modal-title mb-1">Database Backup</h5>
+                    <small class="text-muted">Create and download a backup of your database</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <button class="btn btn-primary" :disabled="isDownloadDisabled"><a :href="blobUrl" download="qdb.db">Download Backup</a></button>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonClicked">Cancel</button>
-                <button type="button" class="btn btn-success" @click="onBackupButtonClicked">Backup</button>
+            <div class="modal-body text-center">
+                <div class="mb-4">
+                    <i class="bi bi-database-fill-down display-1 text-primary opacity-75"></i>
+                </div>
+                <p class="mb-4">Click "Create Backup" to generate a backup file of your current database state.</p>
+                <button class="btn btn-primary w-100 mb-3" @click="onBackupButtonClicked" :disabled="!isDatabaseConnected">
+                    <i class="bi bi-download me-2"></i>Create Backup
+                </button>
+                <button class="btn btn-success w-100" :disabled="isDownloadDisabled">
+                    <a :href="blobUrl" download="qdb.db" class="text-white text-decoration-none">
+                        <i class="bi bi-file-earmark-arrow-down me-2"></i>Download Backup File
+                    </a>
+                </button>
             </div>
         </div>
     </div>

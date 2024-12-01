@@ -1,16 +1,62 @@
 :root {
     --tree-indent: 1.5rem;
     --transition-speed: 0.15s;
+    /* Base colors */
+    --primary-rgb: 99, 102, 241;
+    --secondary-rgb: 161, 163, 247;
+    --success-rgb: 34, 197, 94;
+    --danger-rgb: 239, 68, 68;
+    --warning-rgb: 245, 158, 11;
+    --info-rgb: 6, 182, 212;
+    
+    /* Theme colors */
+    --modal-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.2);
+    --button-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 [data-bs-theme="light"] {
     --tree-hover-bg: rgba(0, 0, 0, 0.05);
     --tree-selected-bg: rgba(13, 110, 253, 0.15);
+    --tree-hover-bg: rgba(var(--primary-rgb), 0.04);
+    --tree-selected-bg: rgba(var(--primary-rgb), 0.08);
+    --surface-bg: 255, 255, 255;
+    --text-primary: 15, 23, 42;
+    --text-secondary: 71, 85, 105;
+    --border-color: 226, 232, 240;
 }
 
 [data-bs-theme="dark"] {
     --tree-hover-bg: rgba(255, 255, 255, 0.05);
     --tree-selected-bg: rgba(13, 110, 253, 0.35);
+    --tree-hover-bg: rgba(var(--primary-rgb), 0.08);
+    --tree-selected-bg: rgba(var(--primary-rgb), 0.15);
+    --surface-bg: 17, 24, 39;
+    --text-primary: 241, 245, 249;
+    --text-secondary: 148, 163, 184;
+    --border-color: 51, 65, 85;
+}
+
+/* Override Bootstrap variables */
+:root[data-bs-theme="light"] {
+    --bs-body-bg: rgb(250, 250, 252);
+    --bs-body-color: rgb(var(--text-primary));
+    --bs-primary-rgb: var(--primary-rgb);
+    --bs-secondary-rgb: var(--secondary-rgb);
+    --bs-success-rgb: var(--success-rgb);
+    --bs-danger-rgb: var(--danger-rgb);
+    --bs-warning-rgb: var(--warning-rgb);
+    --bs-info-rgb: var(--info-rgb);
+}
+
+:root[data-bs-theme="dark"] {
+    --bs-body-bg: rgb(15, 23, 42);
+    --bs-body-color: rgb(var(--text-primary));
+    --bs-primary-rgb: var(--primary-rgb);
+    --bs-secondary-rgb: var(--secondary-rgb);
+    --bs-success-rgb: var (--success-rgb);
+    --bs-danger-rgb: var(--danger-rgb);
+    --bs-warning-rgb: var(--warning-rgb);
+    --bs-info-rgb: var(--info-rgb);
 }
 
 body {
@@ -95,6 +141,9 @@ body {
     box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
     border-radius: 1rem;
     overflow: hidden;
+    background: rgba(var(--surface-bg), 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(var(--border-color), 0.1);
 }
 
 .modal-header {
@@ -382,4 +431,29 @@ body {
 
 .badge {
     padding: 0.5rem;
+}
+
+/* Modal styling enhancements */
+.modal-content {
+    background: rgba(var(--surface-bg), 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(var(--border-color), 0.1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, rgb(var(--primary-rgb)), rgb(var(--secondary-rgb)));
+    border: none;
+    box-shadow: var(--button-shadow);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, rgb(var(--success-rgb)), rgb(34, 197, 94, 0.8));
+    border: none;
+    box-shadow: var(--button-shadow);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, rgb(var(--danger-rgb)), rgb(239, 68, 68, 0.8));
+    border: none;
+    box-shadow: var(--button-shadow);
 }
