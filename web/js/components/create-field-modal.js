@@ -7,40 +7,65 @@ function registerCreateFieldModalComponent(app, context) {
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title mb-1">Create Field</h5>
-                    <small class="text-muted">Add a new field type to the database</small>
+                    <small class="text-muted">Define a new field type for entities</small>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-puzzle me-2"></i>
+                        <div>
+                            <strong>Field Types</strong>
+                            <p class="mb-0 small">Fields are the building blocks of entity types.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-floating mb-4">
                     <input type="text" class="form-control form-control-lg" 
                            id="fieldNameInput" placeholder="ExampleField" 
                            v-model="fieldName"
                            autofocus>
-                    <label for="fieldNameInput">Field Name</label>
+                    <label for="fieldNameInput">
+                        <i class="bi bi-tag me-1"></i>Field Name
+                    </label>
                 </div>
-                <div class="form-floating">
-                    <select class="form-select form-select-lg" 
-                           id="fieldTypeSelect" 
-                           v-model="selectedFieldType">
-                        <option value="" disabled selected>Choose a field type...</option>
-                        <option v-for="fieldType in availableTypes" :value="fieldType">
-                            {{fieldType}}
-                        </option>
-                    </select>
-                    <label for="fieldTypeSelect">Field Type</label>
+
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <h6 class="mb-0 text-secondary">Field Type</h6>
+                    <hr class="flex-grow-1 my-0">
+                </div>
+
+                <div class="dropdown w-100">
+                    <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between" 
+                            type="button" 
+                            data-bs-toggle="dropdown">
+                        <span>
+                            <i class="bi bi-code-square me-2"></i>
+                            {{selectedFieldType || 'Select field type...'}}
+                        </span>
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <ul class="dropdown-menu w-100">
+                        <li v-for="type in availableTypes" 
+                            class="dropdown-item" 
+                            @click="onTypeSelect(type)">
+                            <i class="bi bi-code-square me-2"></i>{{type}}
+                        </li>
+                    </ul>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" 
                         data-bs-dismiss="modal" @click="onCancelButtonPressed">
-                    Cancel
+                    <i class="bi bi-x-lg me-2"></i>Cancel
                 </button>
                 <button type="button" class="btn btn-primary" 
                         data-bs-dismiss="modal" 
                         @click="onCreateButtonPressed" 
                         :disabled="isCreateDisabled">
-                    <i class="bi bi-plus-circle me-2"></i>Create Field
+                    <i class="bi bi-plus-lg me-2"></i>Create Field
                 </button>
             </div>
         </div>

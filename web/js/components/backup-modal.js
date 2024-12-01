@@ -6,8 +6,8 @@ function registerBackupModalComponent(app, context) {
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <h5 class="modal-title mb-1">Database Backup</h5>
-                    <small class="text-muted">Create and download a backup of your database</small>
+                    <h5 class="modal-title mb-1">Create Backup</h5>
+                    <small class="text-muted">Save your database state to a file</small>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -15,15 +15,31 @@ function registerBackupModalComponent(app, context) {
                 <div class="mb-4">
                     <i class="bi bi-database-fill-down display-1 text-primary opacity-75"></i>
                 </div>
-                <p class="mb-4">Click "Create Backup" to generate a backup file of your current database state.</p>
-                <button class="btn btn-primary w-100 mb-3" @click="onBackupButtonClicked" :disabled="!isDatabaseConnected">
-                    <i class="bi bi-download me-2"></i>Create Backup
-                </button>
-                <button class="btn btn-success w-100" :disabled="isDownloadDisabled">
-                    <a :href="blobUrl" download="qdb.db" class="text-white text-decoration-none">
-                        <i class="bi bi-file-earmark-arrow-down me-2"></i>Download Backup File
-                    </a>
-                </button>
+
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <div>
+                            <strong>Database Backup</strong>
+                            <p class="mb-0 small">Creates a snapshot of your current database state.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="backup-actions">
+                    <button class="btn btn-primary btn-lg w-100 mb-3" 
+                            @click="onBackupButtonClicked" 
+                            :disabled="!isDatabaseConnected">
+                        <i class="bi bi-camera me-2"></i>Create Snapshot
+                    </button>
+
+                    <button class="btn btn-success btn-lg w-100" 
+                            :disabled="isDownloadDisabled">
+                        <a :href="blobUrl" download="qdb.db" class="text-white text-decoration-none">
+                            <i class="bi bi-download me-2"></i>Download Backup File
+                        </a>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
