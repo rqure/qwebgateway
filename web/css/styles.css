@@ -697,18 +697,54 @@ body {
 
 /* Entity Viewer Styling */
 .entity-viewer {
-    padding: 1.5rem;
+    padding: 1rem;
     background: rgba(var(--surface-bg), 0.5);
     backdrop-filter: blur(8px);
 }
 
 .entity-card {
-    background: rgba(var(--surface-bg), 0.8);
+    background: rgba(var(--surface-bg), 0.95);
     border-radius: 1rem;
     padding: 1.5rem;
     margin-bottom: 2rem;
-    border: 1px solid rgba(var(--border-color), 0.1);
+    border: 1px solid rgba(var(--border-color), 0.15);
     box-shadow: var(--modal-shadow);
+}
+
+.row {
+    margin-right: 0;
+    margin-left: 0;
+}
+
+/* Ensure form controls don't overflow */
+.field-value {
+    position: relative;
+    min-width: 0; /* Allow flex items to shrink below content size */
+}
+
+.field-value > * {
+    width: 100%;
+}
+
+/* ...existing code... */
+
+/* Entity Viewer Styling */
+.entity-viewer {
+    padding: 1.5rem;
+    background: rgba(var(--surface-bg), 0.5);
+    backdrop-filter: blur(8px);
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.entity-card {
+    background: rgba(var(--surface-bg), 0.95); /* Increased contrast for the card */
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(var(--border-color), 0.15); /* Slightly stronger border */
+    box-shadow: var(--modal-shadow);
+    width: 100%;
 }
 
 .entity-header {
@@ -722,6 +758,8 @@ body {
     padding: 0.75rem;
     border-radius: 0.5rem;
     margin-bottom: 1rem;
+    background: rgba(var(--surface-bg), 0.4); /* Added subtle background */
+    width: 100%;
 }
 
 .field-group:hover {
@@ -743,14 +781,17 @@ body {
 
 .field-value {
     position: relative;
+    width: 100%;
 }
 
 .field-timestamp {
     font-size: 0.75rem;
     color: var(--bs-secondary-color);
-    position: absolute;
-    right: 0;
-    bottom: -1.25rem;
+    position: relative;  /* Changed from absolute */
+    display: block;
+    text-align: right;
+    margin-top: 0.25rem;
+    margin-bottom: -1rem;
 }
 
 .file-control {
@@ -792,20 +833,24 @@ body {
 /* Form control enhancements */
 .entity-viewer .form-control,
 .entity-viewer .form-select {
-    border: 1px solid rgba(var(--border-color), 0.2);
-    background: rgba(var(--surface-bg), 0.5);
+    border: 1px solid rgba(var(--border-color), 0.3); /* Stronger border */
+    background: rgba(var(--surface-bg), 0.7); /* Stronger background */
     transition: all 0.2s ease-in-out;
+    width: 100%;
+    max-width: 100%;
+    word-break: break-word;
 }
 
 .entity-viewer .form-control:hover,
 .entity-viewer .form-select:hover {
-    border-color: rgba(var(--primary-rgb), 0.3);
-    background: rgba(var(--surface-bg), 0.8);
+    border-color: rgba(var(--primary-rgb), 0.4);
+    background: rgba(var(--surface-bg), 0.9);
 }
 
 .entity-viewer .form-control:focus,
 .entity-viewer .form-select:focus {
     border-color: rgb(var(--primary-rgb));
+    background: rgba(var(--surface-bg), 1); /* Solid background when focused */
     box-shadow: var(--accent-glow);
 }
 
