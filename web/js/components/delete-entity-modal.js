@@ -9,14 +9,21 @@ function registerDeleteEntityModalComponent(app, context) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="entityIdInput" placeholder="ExampleEntity" v-model="entityId">
-                    <label for="entityIdInput">Entity ID</label>
+                <p>Are you sure you want to delete this entity?</p>
+                <div class="alert alert-info">
+                    <strong>Type:</strong> {{selectedNode.entityType}}<br>
+                    <strong>Name:</strong> {{selectedNode.entityName}}<br>
+                    <strong>ID:</strong> {{selectedNode.entityId}}
+                </div>
+                <div class="alert alert-warning">
+                    This action cannot be undone!
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
-                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="onDeleteButtonPressed" :disabled="isDeleteDisabled">Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="onDeleteButtonPressed" :disabled="!isDatabaseConnected">
+                    Delete
+                </button>
             </div>
         </div>
     </div>
@@ -29,7 +36,7 @@ function registerDeleteEntityModalComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
-                entityId: "",
+                selectedNode: context.selectedNode,
                 database: context.qDatabaseInteractor,
                 isDatabaseConnected: false
             }
@@ -57,7 +64,7 @@ function registerDeleteEntityModalComponent(app, context) {
 
             onDeleteButtonPressed() {
                 this.database
-                    .deleteEntity(this.entityId)
+                    .deleteEntity(this.selectedNode.entityId)
                     .catch(error => qError(`[DeleteEntityModal::onDeleteButtonPressed] ${error}`));
             }
         },

@@ -5,13 +5,12 @@ function registerCreateEntityModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Entity</h5>
+                <h5 class="modal-title">Create Child Entity</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="parentIdInput" placeholder="ExampleEntity" v-model="parentId">
-                    <label for="parentIdInput">Parent ID</label>
+                <div class="alert alert-info mb-3">
+                    <strong>Parent Entity:</strong> {{selectedNode.entityName || selectedNode.entityId}}
                 </div>
                 <div class="form-floating mb-3">
                     <input type="text" class="form-control" id="entityNameInput" placeholder="ExampleEntity" v-model="entityName">
@@ -39,9 +38,9 @@ function registerCreateEntityModalComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
+                selectedNode: context.selectedNode,
                 entityName: "",
                 entityType: "",
-                parentId: "",
                 availableEntityTypes: [],
                 database: context.qDatabaseInteractor,
                 isDatabaseConnected: false
@@ -77,28 +76,22 @@ function registerCreateEntityModalComponent(app, context) {
             },
 
             onCreateButtonPressed() {
-                const me = this;
                 this.database
-                    .createEntity(me.parentId, me.entityName, me.entityType)
+                    .createEntity(this.selectedNode.entityId, this.entityName, this.entityType)
                     .catch(error => qError(`[CreateEntityModal::onCreateButtonPressed] Failed to create entity: ${error}`));
                 
-                me.entityName = "";
-                me.entityType = "";
-                me.parentId = "";
+                this.entityName = "";
+                this.entityType = "";
             },
 
             onCancelButtonPressed() {
-                const me = this;
-
-                me.entityName = "";
-                me.entityType = "";
-                me.parentId = "";
+                this.entityName = "";
+                this.entityType = "";
             },
         },
         computed: {
             isCreateDisabled() {
-                const me = this;
-                return me.entityName.length == 0 || me.entityType.length == 0 || !me.isDatabaseConnected;
+                return this.entityName.length == 0 || this.entityType.length == 0 || !this.isDatabaseConnected;
             }
         }
     })

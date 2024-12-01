@@ -1,18 +1,26 @@
 function registerTreeNodeComponent(app, context) {
     return app.component("tree-node", {
         template: `
-    <li class="list-group-item list-group-item-action">
-        <div @click="onFocus">
-            <span class="mr-5" v-if="!expandable"></span>
-            <span class="badge text-bg-primary">{{localEntityType}}</span>
-            {{localEntityName}}
-            <span class="badge text-bg-info" v-if="expandable" @click="toggleExpand">{{ expanded ? '-' : '+' }}</span>
-        </div>
-        <ul class="list-group list-group-flush" v-if="expanded">
-            <tree-node
-                v-for="child in localEntityChildren" :entityId="child.getRaw()" />
-        </ul>
-    </li>`,
+            <li class="tree-node" 
+                :class="{ 'selected': isSelected }" 
+                @click.stop="onFocus"
+                @contextmenu.prevent="showContextMenu">
+                <div class="tree-node-content">
+                    <i v-if="expandable" 
+                       class="bi bi-chevron-right tree-node-icon" 
+                       :class="{ 'expanded': expanded }"
+                       @click.stop="toggleExpand"></i>
+                    <i v-else class="bi bi-circle-fill tree-node-icon opacity-25"></i>
+                    <span class="badge rounded-pill" 
+                          :class="'text-bg-' + getTypeColor()">{{localEntityType}}</span>
+                    <span>{{localEntityName || localEntityId}}</span>
+                </div>
+                <ul v-if="expanded" class="list-unstyled tree-node-children">
+                    <tree-node v-for="child in localEntityChildren" 
+                             :key="child.getRaw()"
+                             :entityId="child.getRaw()" />
+                </ul>
+            </li>`,
 
         props: {
             entityId: {
@@ -242,12 +250,32 @@ function registerTreeNodeComponent(app, context) {
                             this.selectedNode.entityFields[field.getName()].blobUrl = window.URL.createObjectURL(blob);
                         });
                 }
+            },
+
+            getTypeColor() {
+                // Map entity types to Bootstrap colors
+                const hash = this.localEntityType.split('').reduce((acc, char) => {
+                    return char.charCodeAt(0) + ((acc << 5) - acc);
+                }, 0);
+                const colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info'];
+                return colors[Math.abs(hash) % colors.length];
+            },
+
+            showContextMenu(event) {
+                context.contextMenuManager.show(event, {
+                    entityId: this.localEntityId,
+                    entityType: this.localEntityType,
+                    entityName: this.localEntityName
+                });
             }
         },
 
         computed: {
             expandable() {
                 return this.localEntityChildren.length > 0;
+            },
+            isSelected() {
+                return this.selectedNode.entityId === this.localEntityId;
             }
         }
     })
