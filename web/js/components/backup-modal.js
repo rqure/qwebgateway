@@ -1,7 +1,7 @@
 function registerBackupModalComponent(app, context) {
     return app.component("backup-modal", {
         template: `
-<div class="modal" tabindex="-1">
+<div class="modal" tabindex="-1" @hidden.bs.modal="onModalHidden">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -29,16 +29,18 @@ function registerBackupModalComponent(app, context) {
                 <div class="backup-actions">
                     <button class="btn btn-primary btn-lg w-100 mb-3" 
                             @click="onBackupButtonClicked" 
-                            :disabled="!isDatabaseConnected">
-                        <i class="bi bi-camera me-2"></i>Create Snapshot
+                            :disabled="!isDatabaseConnected || isLoading">
+                        <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
+                        <i v-else class="bi bi-camera me-2"></i>
+                        {{isLoading ? 'Creating Snapshot...' : 'Create Snapshot'}}
                     </button>
 
-                    <button class="btn btn-success btn-lg w-100" 
-                            :disabled="isDownloadDisabled">
-                        <a :href="blobUrl" download="qdb.db" class="text-white text-decoration-none">
-                            <i class="bi bi-download me-2"></i>Download Backup File
-                        </a>
-                    </button>
+                    <a v-if="blobUrl" 
+                       :href="blobUrl" 
+                       download="qdb.db" 
+                       class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-download me-2"></i>Download Backup File
+                    </a>
                 </div>
             </div>
         </div>
@@ -54,7 +56,8 @@ function registerBackupModalComponent(app, context) {
             return {
                 blobUrl: "",
                 database: context.qDatabaseInteractor,
-                isDatabaseConnected: false
+                isDatabaseConnected: false,
+                isLoading: false
             }
         },
 
@@ -86,11 +89,17 @@ function registerBackupModalComponent(app, context) {
                 this.blobUrl = "";
             },
 
+            onModalHidden() {
+                this.onCancelButtonClicked();
+            },
+
             onBackupButtonClicked() {
+                this.isLoading = true;
                 this.database
                     .createSnapshot()
                     .then(event => this.onCreateSnapshot(event))
-                    .catch(error => qError(`[BackupModal::onBackupButtonClicked] Failed to create database snapshot: ${error}`));
+                    .catch(error => qError(`[BackupModal::onBackupButtonClicked] Failed to create database snapshot: ${error}`))
+                    .finally(() => this.isLoading = false);
             }
         },
         

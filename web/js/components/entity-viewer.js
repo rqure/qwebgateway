@@ -1,65 +1,129 @@
 function registerEntityViewerComponent(app, context) {
+    // Add auto-resize directive
+    app.directive('auto-resize', {
+        mounted(el) {
+            const resize = () => {
+                el.style.height = 'auto'
+                el.style.height = el.scrollHeight + 'px'
+            }
+            el.addEventListener('input', resize)
+            // Initial resize
+            resize()
+        }
+    })
+
     return app.component("entity-viewer", {
         template: `
-<div v-if="selectedNode.entityId.length" class="container-fluid border border-secondary rounded fill-v overflow-auto">
-    <div class="row mt-3 mb-3">
-        <label class="col-sm-3 col-form-label">Type</label>
-        <div class="col-sm-9">
-            <input type="text" class="form-control" v-model="selectedNode.entityType" readonly>
-        </div>
-    </div>
-    <div class="row mb-3">
-        <label class="col-sm-3 col-form-label">Id</label>
-        <div class="col-sm-9">
-            <input type="text" class="form-control" v-model="selectedNode.entityId" readonly>
-        </div>
-    </div>
-    <div class="row mb-3">
-        <label class="col-sm-3 col-form-label">Name</label>
-        <div class="col-sm-9">
-            <input type="text" class="form-control" v-model="selectedNode.entityName" readonly>
-        </div>
-    </div>
-    <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="row mb-3">
-        <label class="col-sm-3 col-form-label">{{name}}</label>
-        <div v-if="field.typeName === 'qdb.Bool'" class="col-sm-6">
-            <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
-            <select class="form-select" v-model="field.value" @change=onBoolFieldChange(field) :id="\`\${selectedNode.entityId}-\${name}\`">
-                <option value="false">False</option>
-                <option value="true">True</option>  
-            </select>
-        </div>
-        <div v-if="field.typeName === 'qdb.Int'" class="col-sm-6">
-            <input type="number" class="form-control" v-model="field.value" @change="onIntFieldChange(field)">
-        </div>
-        <div v-if="field.typeName === 'qdb.Float'" class="col-sm-6">
-            <input type="number" class="form-control" v-model="field.value" @change="onFloatFieldChange(field)">
-        </div>
-        <div v-if="field.typeName === 'qdb.String'" class="col-sm-6">
-            <textarea class="form-control" v-model="field.value" @change="onStringFieldChange(field)"></textarea>
-        </div>
-        <div v-if="field.typeName === 'qdb.Timestamp'" class="col-sm-6">
-            <input type="datetime-local" class="form-control" v-model="field.value" @change="onTimestampFieldChanged(field)">
-        </div>
-        <div v-if="field.typeName === 'qdb.BinaryFile'" class="col-sm-6">
-            <div class="input-group">
-                <input type="file" class="form-control" @change="onFileSelected($event, field)">
-                <button class="btn btn-outline-secondary" type="button" :disabled="!field.blobUrl"><a :href="field.blobUrl" download="data.bin">Download</a></button>
+<div v-if="selectedNode.entityId.length" class="entity-viewer">
+    <div class="entity-card">
+        <div class="entity-header">
+            <h4 class="mb-3">Entity Details</h4>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="field-group">
+                        <div class="field-label"><i class="bi bi-tag field-type-icon"></i> Type</div>
+                        <input type="text" class="form-control" v-model="selectedNode.entityType" readonly>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="field-group">
+                        <div class="field-label"><i class="bi bi-key field-type-icon"></i> ID</div>
+                        <input type="text" class="form-control" v-model="selectedNode.entityId" readonly>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="field-group">
+                        <div class="field-label"><i class="bi bi-pencil field-type-icon"></i> Name</div>
+                        <input type="text" class="form-control" v-model="selectedNode.entityName" readonly>
+                    </div>
+                </div>
             </div>
         </div>
-        <div v-if="field.typeName === 'qdb.EntityReference'" class="col-sm-6">
-            <input type="text" class="form-control" v-model="field.value" @change="onEntityReferenceChanged(field)">
+
+        <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="field-group">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="field-label">
+                        <i :class="getFieldIcon(field)" class="field-type-icon"></i>
+                        {{name}}
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    <div class="field-value">
+                        <!-- Boolean Field -->
+                        <select v-if="field.typeName === 'qdb.Bool'" 
+                                class="form-select" 
+                                v-model="field.value" 
+                                @change="onBoolFieldChange(field)">
+                            <option value="false">False</option>
+                            <option value="true">True</option>
+                        </select>
+
+                        <!-- Number Fields -->
+                        <input v-if="field.typeName === 'qdb.Int' || field.typeName === 'qdb.Float'"
+                               type="number" 
+                               class="form-control" 
+                               v-model="field.value" 
+                               @change="field.typeName === 'qdb.Int' ? onIntFieldChange(field) : onFloatFieldChange(field)">
+
+                        <!-- String Field -->
+                        <textarea v-if="field.typeName === 'qdb.String'"
+                                  class="form-control" 
+                                  v-model="field.value" 
+                                  @change="onStringFieldChange(field)"
+                                  v-auto-resize
+                                  rows="1"></textarea>
+
+                        <!-- Timestamp Field -->
+                        <input v-if="field.typeName === 'qdb.Timestamp'"
+                               type="datetime-local" 
+                               class="form-control" 
+                               v-model="field.value" 
+                               @change="onTimestampFieldChanged(field)">
+
+                        <!-- File Field -->
+                        <div v-if="field.typeName === 'qdb.BinaryFile'" class="file-control">
+                            <input type="file" :id="'file-' + name" @change="onFileSelected($event, field)">
+                            <label :for="'file-' + name">
+                                <i class="bi bi-cloud-upload me-2"></i>
+                                Choose File
+                            </label>
+                            <div v-if="field.blobUrl" class="download-btn">
+                                <a :href="field.blobUrl" download="data.bin" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-download me-2"></i>Download File
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Entity Reference -->
+                        <input v-if="field.typeName === 'qdb.EntityReference'"
+                               type="text" 
+                               class="form-control" 
+                               v-model="field.value" 
+                               @change="onEntityReferenceChanged(field)">
+
+                        <!-- Transformation -->
+                        <textarea v-if="field.typeName === 'qdb.Transformation'"
+                                  class="form-control" 
+                                  v-model="field.value" 
+                                  @change="onTransformationChanged(field)"
+                                  v-auto-resize
+                                  rows="1"></textarea>
+
+                        <!-- Enum Field -->
+                        <select v-if="isEnum(field.typeClass)"
+                                class="form-select" 
+                                v-model="field.value" 
+                                @change="onEnumFieldChanged(field)">
+                            <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" 
+                                    :value="choiceValue">{{choiceName}}</option>
+                        </select>
+
+                        <div class="field-timestamp">{{field.writeTime}}</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div v-if="field.typeName === 'qdb.Transformation'" class="col-sm-6">
-            <textarea class="form-control" v-model="field.value" @change="onTransformationChanged(field)"></textarea>
-        </div>
-        <div v-if="isEnum(field.typeClass)" class="col-sm-6">
-            <label class="visually-hidden" v-bind:for="\`\${selectedNode.entityId}-\${name}\`">Choices</label>
-            <select class="form-select" v-model="field.value" :id="\`\${selectedNode.entityId}-\${name}\`" @change="onEnumFieldChanged(field)">
-                <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" :value="choiceValue">{{choiceName}}</option>
-            </select>
-        </div>
-        <label class="col-sm-3 col-form-label">{{field.writeTime}}</label>
     </div>
 </div>`,
 
@@ -276,6 +340,20 @@ function registerEntityViewerComponent(app, context) {
                 };
                 reader.readAsArrayBuffer(file);
             },
+
+            getFieldIcon(field) {
+                const iconMap = {
+                    'qdb.Bool': 'bi-toggle2-on',
+                    'qdb.Int': 'bi-123',
+                    'qdb.Float': 'bi-graph-up',
+                    'qdb.String': 'bi-text-paragraph',
+                    'qdb.Timestamp': 'bi-calendar-event',
+                    'qdb.BinaryFile': 'bi-file-earmark-binary',
+                    'qdb.EntityReference': 'bi-link-45deg',
+                    'qdb.Transformation': 'bi-code-square'
+                };
+                return `bi ${iconMap[field.typeName] || 'bi-dot'}`;
+            }
         },
 
         computed: {

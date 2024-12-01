@@ -1,4 +1,21 @@
 function registerTreeContextMenuComponent(app, context) {
+    // Register tooltip directive
+    app.directive('tooltip', {
+        mounted(el, binding) {
+            new bootstrap.Tooltip(el, {
+                title: binding.value,
+                placement: binding.arg || 'top',
+                trigger: 'hover'
+            });
+        },
+        unmounted(el) {
+            const tooltip = bootstrap.Tooltip.getInstance(el);
+            if (tooltip) {
+                tooltip.dispose();
+            }
+        }
+    });
+
     app.component('tree-context-menu', {
         template: `
             <div class="context-menu" v-show="visible" :style="menuStyle">
