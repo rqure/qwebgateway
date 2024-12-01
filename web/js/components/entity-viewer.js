@@ -50,74 +50,83 @@ function registerEntityViewerComponent(app, context) {
                 </div>
                 <div class="col-md-9">
                     <div class="field-value">
-                        <!-- Boolean Field -->
-                        <select v-if="field.typeName === 'qdb.Bool'" 
-                                class="form-select" 
-                                v-model="field.value" 
-                                @change="onBoolFieldChange(field)">
-                            <option value="false">False</option>
-                            <option value="true">True</option>
-                        </select>
+                        <transition name="field-update" v-if="field.typeName !== 'qdb.Transformation'">
+                            <div :key="field.value">
+                                <!-- Boolean Field -->
+                                <select v-if="field.typeName === 'qdb.Bool'" 
+                                        class="form-select" 
+                                        v-model.lazy="field.value" 
+                                        @change="onBoolFieldChange(field)">
+                                    <option value="false">False</option>
+                                    <option value="true">True</option>
+                                </select>
 
-                        <!-- Number Fields -->
-                        <input v-if="field.typeName === 'qdb.Int' || field.typeName === 'qdb.Float'"
-                               type="number" 
-                               class="form-control" 
-                               v-model="field.value" 
-                               @change="field.typeName === 'qdb.Int' ? onIntFieldChange(field) : onFloatFieldChange(field)">
+                                <!-- Number Fields -->
+                                <input v-if="field.typeName === 'qdb.Int' || field.typeName === 'qdb.Float'"
+                                       type="number" 
+                                       class="form-control" 
+                                       v-model.lazy="field.value" 
+                                       @keyup.enter="onSubmitField($event, field)"
+                                       @change="field.typeName === 'qdb.Int' ? onIntFieldChange(field) : onFloatFieldChange(field)">
 
-                        <!-- String Field -->
-                        <textarea v-if="field.typeName === 'qdb.String'"
-                                  class="form-control" 
-                                  v-model="field.value" 
-                                  @change="onStringFieldChange(field)"
-                                  v-auto-resize
-                                  rows="1"></textarea>
+                                <!-- String Field -->
+                                <textarea v-if="field.typeName === 'qdb.String'"
+                                          class="form-control" 
+                                          v-model.lazy="field.value" 
+                                          @keyup.enter="onSubmitField($event, field)"
+                                          @change="onStringFieldChange(field)"
+                                          v-auto-resize
+                                          rows="1"></textarea>
 
-                        <!-- Timestamp Field -->
-                        <input v-if="field.typeName === 'qdb.Timestamp'"
-                               type="datetime-local" 
-                               class="form-control" 
-                               v-model="field.value" 
-                               @change="onTimestampFieldChanged(field)">
+                                <!-- Timestamp Field -->
+                                <input v-if="field.typeName === 'qdb.Timestamp'"
+                                       type="datetime-local" 
+                                       class="form-control" 
+                                       v-model.lazy="field.value" 
+                                       @keyup.enter="onSubmitField($event, field)"
+                                       @change="onTimestampFieldChanged(field)">
 
-                        <!-- File Field -->
-                        <div v-if="field.typeName === 'qdb.BinaryFile'" class="file-control">
-                            <input type="file" :id="'file-' + name" @change="onFileSelected($event, field)">
-                            <label :for="'file-' + name">
-                                <i class="bi bi-cloud-upload me-2"></i>
-                                Choose File
-                            </label>
-                            <div v-if="field.blobUrl" class="download-btn">
-                                <a :href="field.blobUrl" download="data.bin" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-download me-2"></i>Download File
-                                </a>
+                                <!-- File Field -->
+                                <div v-if="field.typeName === 'qdb.BinaryFile'" class="file-control">
+                                    <input type="file" :id="'file-' + name" @change="onFileSelected($event, field)">
+                                    <label :for="'file-' + name">
+                                        <i class="bi bi-cloud-upload me-2"></i>
+                                        Choose File
+                                    </label>
+                                    <div v-if="field.blobUrl" class="download-btn">
+                                        <a :href="field.blobUrl" download="data.bin" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-download me-2"></i>Download File
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Entity Reference -->
+                                <input v-if="field.typeName === 'qdb.EntityReference'"
+                                       type="text" 
+                                       class="form-control" 
+                                       v-model.lazy="field.value" 
+                                       @keyup.enter="onSubmitField($event, field)"
+                                       @change="onEntityReferenceChanged(field)">
+
+                                <!-- Enum Field -->
+                                <select v-if="isEnum(field.typeClass)"
+                                        class="form-select" 
+                                        v-model.lazy="field.value" 
+                                        @change="onEnumFieldChanged(field)">
+                                    <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" 
+                                            :value="choiceValue">{{choiceName}}</option>
+                                </select>
                             </div>
-                        </div>
+                        </transition>
 
-                        <!-- Entity Reference -->
-                        <input v-if="field.typeName === 'qdb.EntityReference'"
-                               type="text" 
-                               class="form-control" 
-                               v-model="field.value" 
-                               @change="onEntityReferenceChanged(field)">
-
-                        <!-- Transformation -->
+                        <!-- Transformation fields (no transition) -->
                         <textarea v-if="field.typeName === 'qdb.Transformation'"
                                   class="form-control" 
                                   v-model="field.value" 
-                                  @change="onTransformationChanged(field)"
+                                  @blur="onTransformationChanged(field)"
+                                  @keyup.enter="$event.target.blur()"
                                   v-auto-resize
                                   rows="1"></textarea>
-
-                        <!-- Enum Field -->
-                        <select v-if="isEnum(field.typeClass)"
-                                class="form-select" 
-                                v-model="field.value" 
-                                @change="onEnumFieldChanged(field)">
-                            <option v-for="(choiceValue, choiceName) in enumChoices(field.typeClass)" 
-                                    :value="choiceValue">{{choiceName}}</option>
-                        </select>
 
                         <div class="field-timestamp">{{field.writeTime}}</div>
                     </div>
@@ -353,6 +362,15 @@ function registerEntityViewerComponent(app, context) {
                     'qdb.Transformation': 'bi-code-square'
                 };
                 return `bi ${iconMap[field.typeName] || 'bi-dot'}`;
+            },
+
+            onSubmitField(event, field) {
+                // Prevent newline in textarea
+                event.preventDefault();
+                // Only blur if Shift isn't held
+                if (!event.shiftKey) {
+                    event.target.blur();
+                }
             }
         },
 
