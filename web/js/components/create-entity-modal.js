@@ -15,7 +15,7 @@ function registerCreateEntityModalComponent(app, context) {
                 <div class="alert alert-info mb-4">
                     <div class="d-flex align-items-center">
                         <i class="bi bi-folder me-2"></i>
-                        <strong>Parent:</strong>&nbsp;{{selectedNode.entityName || selectedNode.entityId}}
+                        <strong>Parent:</strong>&nbsp;{{treeStore.selectedNode.entityName || treeStore.selectedNode.entityId}}
                     </div>
                 </div>
                 <div class="form-floating mb-4">
@@ -52,6 +52,8 @@ function registerCreateEntityModalComponent(app, context) {
     </div>
 </div>`,
 
+        inject: ['treeStore'],
+
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
@@ -59,7 +61,6 @@ function registerCreateEntityModalComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
-                selectedNode: context.selectedNode,
                 entityName: "",
                 entityType: "",
                 availableEntityTypes: [],
@@ -96,10 +97,22 @@ function registerCreateEntityModalComponent(app, context) {
                 this.availableEntityTypes = event.entityTypes;
             },
 
-            onCreateButtonPressed() {
-                this.database
-                    .createEntity(this.selectedNode.entityId, this.entityName, this.entityType)
-                    .catch(error => qError(`[CreateEntityModal::onCreateButtonPressed] Failed to create entity: ${error}`));
+            async onCreateButtonPressed() {
+                try {
+                    await this.database.createEntity(
+                        this.treeStore.selectedNode.entityId,
+                        this.entityName,
+                        this.entityType
+                    );
+                    
+                    // Trigger update for parent node
+                    const parentNode = this.treeStore.getNode(this.treeStore.selectedNode.entityId);
+                    if (parentNode) {
+                        await parentNode.initializeNode();
+                    }
+                } catch (error) {
+                    qError(`[CreateEntityModal::onCreateButtonPressed] Failed to create entity: ${error}`);
+                }
                 
                 this.entityName = "";
                 this.entityType = "";

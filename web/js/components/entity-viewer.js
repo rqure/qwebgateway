@@ -14,7 +14,7 @@ function registerEntityViewerComponent(app, context) {
 
     return app.component("entity-viewer", {
         template: `
-<div v-if="selectedNode.entityId.length" class="entity-viewer">
+<div v-if="treeStore.selectedNode.entityId.length" class="entity-viewer">
     <div class="entity-card">
         <div class="entity-header">
             <h4 class="mb-3">Entity Details</h4>
@@ -22,25 +22,25 @@ function registerEntityViewerComponent(app, context) {
                 <div class="col-md-4">
                     <div class="field-group">
                         <div class="field-label"><i class="bi bi-tag field-type-icon"></i> Type</div>
-                        <input type="text" class="form-control" v-model="selectedNode.entityType" readonly>
+                        <input type="text" class="form-control" v-model="treeStore.selectedNode.entityType" readonly>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="field-group">
                         <div class="field-label"><i class="bi bi-key field-type-icon"></i> ID</div>
-                        <input type="text" class="form-control" v-model="selectedNode.entityId" readonly>
+                        <input type="text" class="form-control" v-model="treeStore.selectedNode.entityId" readonly>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="field-group">
                         <div class="field-label"><i class="bi bi-pencil field-type-icon"></i> Name</div>
-                        <input type="text" class="form-control" v-model="selectedNode.entityName" readonly>
+                        <input type="text" class="form-control" v-model="treeStore.selectedNode.entityName" readonly>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div v-for="(field, name) in selectedNode.entityFields" :key="name" class="field-group">
+        <div v-for="(field, name) in treeStore.selectedNode.entityFields" :key="name" class="field-group">
             <div class="row">
                 <div class="col-md-3">
                     <div class="field-label">
@@ -136,6 +136,8 @@ function registerEntityViewerComponent(app, context) {
     </div>
 </div>`,
 
+        inject: ['treeStore'],  // Inject the tree store
+
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
@@ -143,7 +145,6 @@ function registerEntityViewerComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
-                selectedNode: context.selectedNode,
                 database: context.qDatabaseInteractor,
                 isDatabaseConnected: false
             }
@@ -192,7 +193,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -212,7 +213,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -232,7 +233,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -247,7 +248,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -262,7 +263,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -277,7 +278,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -292,7 +293,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -307,7 +308,7 @@ function registerEntityViewerComponent(app, context) {
 
                 this.database.write([
                     {
-                        id: this.selectedNode.entityId,
+                        id: this.treeStore.selectedNode.entityId,
                         field: field.name,
                         value: valueAsAny
                     }
@@ -341,7 +342,7 @@ function registerEntityViewerComponent(app, context) {
 
                     me.database.write([
                         {
-                            id: me.selectedNode.entityId,
+                            id: me.treeStore.selectedNode.entityId,
                             field: field.name,
                             value: valueAsAny
                         }
@@ -375,7 +376,6 @@ function registerEntityViewerComponent(app, context) {
         },
 
         computed: {
-            
         }
     })
 }

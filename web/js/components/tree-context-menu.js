@@ -66,6 +66,8 @@ function registerTreeContextMenuComponent(app, context) {
                 </div>
             </div>`,
 
+        inject: ['treeStore'],
+
         mounted() {
             context.contextMenuManager.instance = this;
             document.addEventListener('click', this.hide);
@@ -91,7 +93,7 @@ function registerTreeContextMenuComponent(app, context) {
                 }
             },
             canDelete() {
-                return this.targetNode && this.targetNode.entityId !== "root";
+                return this.targetNode && this.targetNode.id !== "root";
             }
         },
 
@@ -104,10 +106,12 @@ function registerTreeContextMenuComponent(app, context) {
                 this.targetNode = node;
                 this.visible = true;
                 
-                // Store target node data immediately when showing menu
-                context.selectedNode.entityId = node.entityId;
-                context.selectedNode.entityName = node.entityName;
-                context.selectedNode.entityType = node.entityType;
+                // Update treeStore selection
+                this.treeStore.selectNode({
+                    id: node.entityId,
+                    name: node.entityName,
+                    type: node.entityType
+                });
                 
                 // Position menu and handle screen boundaries
                 this.x = event.clientX;
@@ -140,27 +144,15 @@ function registerTreeContextMenuComponent(app, context) {
             },
 
             handleAction(action) {
-                const currentNode = {
-                    entityId: context.selectedNode.entityId,
-                    entityName: context.selectedNode.entityName,
-                    entityType: context.selectedNode.entityType
-                };
-                
+                const currentNode = this.targetNode;
                 this.hide();
                 
                 switch(action) {
                     case 'create-child-entity':
-                        const createEntityModal = new bootstrap.Modal(document.getElementById('create-entity-modal'));
-                        context.selectedNode.entityId = currentNode.entityId; // Use stored node data
-                        createEntityModal.show();
+                        new bootstrap.Modal(document.getElementById('create-entity-modal')).show();
                         break;
                     case 'delete-entity':
-                        const deleteEntityModal = new bootstrap.Modal(document.getElementById('delete-entity-modal'));
-                        // Restore stored node data
-                        context.selectedNode.entityId = currentNode.entityId;
-                        context.selectedNode.entityName = currentNode.entityName;
-                        context.selectedNode.entityType = currentNode.entityType;
-                        deleteEntityModal.show();
+                        new bootstrap.Modal(document.getElementById('delete-entity-modal')).show();
                         break;
                     case 'create-type':
                         new bootstrap.Modal(document.getElementById('create-type-modal')).show();

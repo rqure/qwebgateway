@@ -1,4 +1,48 @@
 async function main() {
+    const createDefaultNode = () => ({
+        entityId: "",
+        entityName: "",
+        entityType: "",
+        entitySchema: null,
+        entityFields: {},
+        notificationTokens: []
+    });
+
+    const treeStore = Vue.reactive({
+        selectedNode: createDefaultNode(),
+        nodes: new Map(), // Cache for all tree nodes
+        registerNode(id, node) {
+            this.nodes.set(id, node);
+        },
+        unregisterNode(id) {
+            this.nodes.delete(id);
+        },
+        getNode(id) {
+            return this.nodes.get(id);
+        },
+        clearSelection() {
+            const oldId = this.selectedNode.entityId;
+            Object.assign(this.selectedNode, createDefaultNode());
+            return oldId;
+        },
+        selectNode(node) {
+            const oldId = this.clearSelection();
+            if (oldId && oldId !== node.id) {
+                const oldNode = this.getNode(oldId);
+                if (oldNode) oldNode.selected = false;
+            }
+            
+            Object.assign(this.selectedNode, {
+                entityId: node.id,
+                entityName: node.name,
+                entityType: node.type
+            });
+            
+            const newNode = this.getNode(node.id);
+            if (newNode) newNode.selected = true;
+        }
+    });
+
     const app = Vue.createApp({
         data() {
             return {
@@ -18,14 +62,7 @@ async function main() {
     
     const context = {
         qDatabaseInteractor: new DatabaseInteractor(),
-        selectedNode: Vue.reactive({
-            entityId: "",
-            entityName: "",
-            entityType: "",
-            entitySchema: null,
-            entityFields: {},
-            notificationTokens: [],
-        }),
+        treeStore,
         contextMenuManager: Vue.reactive({
             instance: null,
             show: (event, node) => {

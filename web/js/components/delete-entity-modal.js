@@ -18,9 +18,9 @@ function registerDeleteEntityModalComponent(app, context) {
                         <strong>Entity Details</strong>
                     </div>
                     <div class="ms-4">
-                        <div class="mb-1"><strong>Type:</strong> {{selectedNode.entityType}}</div>
-                        <div class="mb-1"><strong>Name:</strong> {{selectedNode.entityName}}</div>
-                        <div><strong>ID:</strong> {{selectedNode.entityId}}</div>
+                        <div class="mb-1"><strong>Type:</strong> {{treeStore.selectedNode.entityType}}</div>
+                        <div class="mb-1"><strong>Name:</strong> {{treeStore.selectedNode.entityName}}</div>
+                        <div><strong>ID:</strong> {{treeStore.selectedNode.entityId}}</div>
                     </div>
                 </div>
                 <div class="alert alert-warning">
@@ -45,6 +45,8 @@ function registerDeleteEntityModalComponent(app, context) {
     </div>
 </div>`,
 
+        inject: ['treeStore'],
+
         data() {
             context.qDatabaseInteractor
                 .getEventManager()
@@ -52,7 +54,6 @@ function registerDeleteEntityModalComponent(app, context) {
                 .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
 
             return {
-                selectedNode: context.selectedNode,
                 database: context.qDatabaseInteractor,
                 isDatabaseConnected: false
             }
@@ -73,21 +74,22 @@ function registerDeleteEntityModalComponent(app, context) {
                 this.isDatabaseConnected = false;
             },
 
-            onCancelButtonPressed() {
-                const me = this;
-                me.entityId = "";
-            },
+            async onDeleteButtonPressed() {
+                try {
+                    // Store parent node reference before deletion
+                    const nodeToDelete = this.treeStore.selectedNode;
+                    const parentNode = this.treeStore.nodes.get(nodeToDelete.parentId);
 
-            onDeleteButtonPressed() {
-                this.database
-                    .deleteEntity(this.selectedNode.entityId)
-                    .catch(error => qError(`[DeleteEntityModal::onDeleteButtonPressed] ${error}`));
-            }
-        },
+                    await this.database.deleteEntity(nodeToDelete.entityId);
 
-        computed: {
-            isDeleteDisabled() {
-                return this.entityId === "" || !this.isDatabaseConnected;
+                    // Clear selection and refresh parent node
+                    this.treeStore.clearSelection();
+                    if (parentNode) {
+                        await parentNode.initializeNode();
+                    }
+                } catch (error) {
+                    qError(`[DeleteEntityModal::onDeleteButtonPressed] ${error}`);
+                }
             }
         }
     })
