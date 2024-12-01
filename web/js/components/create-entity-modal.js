@@ -5,27 +5,48 @@ function registerCreateEntityModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Child Entity</h5>
+                <div>
+                    <h5 class="modal-title mb-1">Create Child Entity</h5>
+                    <small class="text-muted">Add a new entity under the selected parent</small>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info mb-3">
-                    <strong>Parent Entity:</strong> {{selectedNode.entityName || selectedNode.entityId}}
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-folder me-2"></i>
+                        <strong>Parent:</strong>&nbsp;{{selectedNode.entityName || selectedNode.entityId}}
+                    </div>
                 </div>
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="entityNameInput" placeholder="ExampleEntity" v-model="entityName">
+                <div class="form-floating mb-4">
+                    <input type="text" class="form-control form-control-lg" 
+                           id="entityNameInput" placeholder="ExampleEntity" 
+                           v-model="entityName"
+                           autofocus>
                     <label for="entityNameInput">Entity Name</label>
                 </div>
-                <div class="form-floating mb-3">
-                    <select class="form-select form-select-lg" id="entityTypeSelect" aria-label="Select entity type" v-model="entityType">
+                <div class="form-floating">
+                    <select class="form-select form-select-lg" 
+                            id="entityTypeSelect" 
+                            v-model="entityType">
+                        <option value="" disabled>Select a type</option>
                         <option v-for="t in availableEntityTypes" :value="t">{{t}}</option>
                     </select>
                     <label for="entityTypeSelect">Entity Type</label>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
-                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onCreateButtonPressed" :disabled="isCreateDisabled">Create</button>
+                <button type="button" class="btn btn-outline-secondary" 
+                        data-bs-dismiss="modal" 
+                        @click="onCancelButtonPressed">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" 
+                        data-bs-dismiss="modal" 
+                        @click="onCreateButtonPressed" 
+                        :disabled="isCreateDisabled">
+                    <i class="bi bi-plus-circle me-2"></i>Create Entity
+                </button>
             </div>
         </div>
     </div>

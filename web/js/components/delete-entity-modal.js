@@ -5,24 +5,40 @@ function registerDeleteEntityModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Entity</h5>
+                <div>
+                    <h5 class="modal-title mb-1">Delete Entity</h5>
+                    <small class="text-muted">This action cannot be undone</small>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete this entity?</p>
-                <div class="alert alert-info">
-                    <strong>Type:</strong> {{selectedNode.entityType}}<br>
-                    <strong>Name:</strong> {{selectedNode.entityName}}<br>
-                    <strong>ID:</strong> {{selectedNode.entityId}}
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Entity Details</strong>
+                    </div>
+                    <div class="ms-4">
+                        <div class="mb-1"><strong>Type:</strong> {{selectedNode.entityType}}</div>
+                        <div class="mb-1"><strong>Name:</strong> {{selectedNode.entityName}}</div>
+                        <div><strong>ID:</strong> {{selectedNode.entityId}}</div>
+                    </div>
                 </div>
                 <div class="alert alert-warning">
-                    This action cannot be undone!
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong>&nbsp;This will permanently delete the entity and all its data.
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="onDeleteButtonPressed" :disabled="!isDatabaseConnected">
-                    Delete
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-danger" 
+                        data-bs-dismiss="modal" 
+                        @click="onDeleteButtonPressed" 
+                        :disabled="!isDatabaseConnected">
+                    <i class="bi bi-trash me-2"></i>Delete Entity
                 </button>
             </div>
         </div>
