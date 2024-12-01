@@ -148,8 +148,122 @@ function registerTreeNodeComponent(app, context) {
                 this.nodeData.children = [];
             },
 
-            onNodeSelect() {
+            async onNodeSelect() {
                 this.treeStore.selectNode(this.nodeData);
+                
+                // Query schema and fields for the selected entity
+                try {
+                    const schemaEvent = await this.database.queryEntitySchema(this.nodeData.type);
+                    this.treeStore.selectedNode.entitySchema = schemaEvent.schema;
+
+                    // Clear existing fields
+                    this.treeStore.selectedNode.entityFields = {};
+                    
+                    // Register for field notifications
+                    if (this.treeStore.selectedNode.notificationTokens.length > 0) {
+                        await this.database.unregisterNotifications(this.treeStore.selectedNode.notificationTokens);
+                        this.treeStore.selectedNode.notificationTokens = [];
+                    }
+
+                    // Read all fields
+                    const fieldRequests = schemaEvent.schema.getFieldsList().map(field => ({
+                        id: this.nodeData.id,
+                        field: field
+                    }));
+
+                    // Register notifications for fields
+                    const notifyEvent = await this.database.registerNotifications(
+                        fieldRequests,
+                        this.onFieldNotification.bind(this)
+                    );
+                    this.treeStore.selectedNode.notificationTokens = notifyEvent.tokens;
+
+                    // Read field values
+                    const readResults = await this.database.read(fieldRequests);
+                    this.processFieldResults(readResults);
+
+                } catch (error) {
+                    qError(`[TreeNode::onNodeSelect] Failed to load entity data: ${error}`);
+                }
+            },
+
+            onFieldNotification(notification) {
+                const field = notification.getCurrent();
+                if (field.getId() !== this.treeStore.selectedNode.entityId) {
+                    return;
+                }
+
+                const fieldName = field.getName();
+                const fieldValue = field.getValue();
+                const protoClass = fieldValue.getTypeName().split('.').reduce((o,i)=> o[i], proto);
+
+                if (!this.treeStore.selectedNode.entityFields[fieldName]) {
+                    this.treeStore.selectedNode.entityFields[fieldName] = {};
+                }
+
+                const model = this.treeStore.selectedNode.entityFields[fieldName];
+                model.name = fieldName;
+                model.typeClass = protoClass;
+                model.typeName = fieldValue.getTypeName();
+                
+                if (model.typeName !== 'qdb.Transformation') {
+                    model.value = protoClass.deserializeBinary(fieldValue.getValue_asU8()).getRaw();
+                    
+                    if (protoClass === proto.qdb.Timestamp) {
+                        model.value = model.value.toDate().toLocaleString('sv-SE', {
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        });
+                    }
+
+                    if (protoClass === proto.qdb.BinaryFile) {
+                        fetch(model.value)
+                            .then(res => res.blob())
+                            .then(blob => {
+                                model.blobUrl = window.URL.createObjectURL(blob);
+                            });
+                    }
+                }
+
+                model.writeTime = field.getWritetime().toDate().toLocaleString('sv-SE', {
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                }) + "." + field.getWritetime().toDate().getMilliseconds().toString().padStart(3, '0');
+            },
+
+            processFieldResults(results) {
+                for (const result of results) {
+                    if (!result.getSuccess()) continue;
+                    
+                    const fieldName = result.getField();
+                    const fieldValue = result.getValue();
+                    const protoClass = fieldValue.getTypeName().split('.').reduce((o,i)=> o[i], proto);
+
+                    this.treeStore.selectedNode.entityFields[fieldName] = {
+                        name: fieldName,
+                        typeClass: protoClass,
+                        typeName: fieldValue.getTypeName(),
+                        value: protoClass.deserializeBinary(fieldValue.getValue_asU8()).getRaw(),
+                        writeTime: result.getWritetime().getRaw().toDate().toLocaleString('sv-SE', {
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        }) + "." + result.getWritetime().getRaw().toDate().getMilliseconds().toString().padStart(3, '0')
+                    };
+
+                    // Handle special field types
+                    if (protoClass === proto.qdb.Timestamp) {
+                        this.treeStore.selectedNode.entityFields[fieldName].value = 
+                            this.treeStore.selectedNode.entityFields[fieldName].value.toDate().toLocaleString('sv-SE', {
+                                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                            });
+                    }
+
+                    if (protoClass === proto.qdb.BinaryFile) {
+                        fetch(this.treeStore.selectedNode.entityFields[fieldName].value)
+                            .then(res => res.blob())
+                            .then(blob => {
+                                this.treeStore.selectedNode.entityFields[fieldName].blobUrl = 
+                                    window.URL.createObjectURL(blob);
+                            });
+                    }
+                }
             },
 
             toggleExpand() {
