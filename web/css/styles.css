@@ -674,3 +674,23 @@ body {
 }
 
 /* ...existing code... */
+
+/* Outline warning button */
+.btn-outline-warning {
+    color: rgb(var(--warning-rgb));
+    border: 2px solid rgb(var(--warning-rgb));
+    background: transparent;
+    box-shadow: none;
+}
+
+.btn-outline-warning:hover:not(:disabled) {
+    background: rgba(var(--warning-rgb), 0.1);
+    color: rgb(var(--warning-rgb));
+    border-color: rgb(var(--warning-rgb));
+}
+
+.btn-outline-warning:active:not(:disabled) {
+    background: rgba(var(--warning-rgb), 0.2);
+}
+
+/* ...existing code... */

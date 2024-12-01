@@ -5,15 +5,40 @@ function registerRestoreModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Restore Database</h5>
+                <div>
+                    <h5 class="modal-title mb-1">Restore Database</h5>
+                    <small class="text-muted">Load a previous database backup</small>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @click="onCancelButtonPressed"></button>
             </div>
-            <div class="modal-body">
-                <input class="form-control" type="file" @change="onFileUpload">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
-                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" :disabled="isRestoreDisabled" @click="onRestoreButtonPressed">Restore</button>
+            <div class="modal-body text-center">
+                <div class="mb-4">
+                    <i class="bi bi-database-fill-up display-1 text-warning opacity-75"></i>
+                </div>
+
+                <div class="alert alert-warning mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <div>
+                            <strong>Warning: Database Restore</strong>
+                            <p class="mb-0 small">This will replace your current database with the backup file.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="upload-zone p-4 border border-dashed rounded-3 mb-4">
+                    <input class="form-control" type="file" @change="onFileUpload">
+                </div>
+
+                <div class="backup-actions">
+                    <button type="button" 
+                            class="btn btn-outline-warning btn-lg w-100" 
+                            data-bs-dismiss="modal" 
+                            :disabled="isRestoreDisabled" 
+                            @click="onRestoreButtonPressed">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Restore Database
+                    </button>
+                </div>
             </div>
         </div>
     </div>
