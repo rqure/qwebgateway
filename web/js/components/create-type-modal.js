@@ -5,32 +5,69 @@ function registerCreateTypeModalComponent(app, context) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Type</h5>
+                <div>
+                    <h5 class="modal-title mb-1">Create/Edit Type</h5>
+                    <small class="text-muted">Define a new entity type or modify an existing one</small>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="entityTypeNameInput" placeholder="ExampleType" v-model="entityType" @change="onEntityTypeChange" @keyup.enter="onEntityTypeChange">
+                <div class="form-floating mb-4">
+                    <input type="text" class="form-control form-control-lg" 
+                           id="entityTypeNameInput" placeholder="ExampleType" 
+                           v-model="entityType" 
+                           @change="onEntityTypeChange" 
+                           @keyup.enter="onEntityTypeChange"
+                           autofocus>
                     <label for="entityTypeNameInput">Type Name</label>
                 </div>
-                <div class="mb-3">
-                    <button class="btn btn-lg w-100 btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Add Field
+
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <h6 class="mb-0 text-secondary">Fields</h6>
+                    <hr class="flex-grow-1 my-0">
+                    <button class="btn btn-primary btn-sm" 
+                            type="button" 
+                            data-bs-toggle="dropdown">
+                        <i class="bi bi-plus-lg me-1"></i>Add Field
                     </button>
-                    <ul class="dropdown-menu w-100">
-                        <li class="dropdown-item w-100" v-for="availableField in availableFields" @click="onSelectField(availableField)">{{availableField}}</li>
+                    <ul class="dropdown-menu scrollable-dropdown-menu w-100">
+                        <li v-for="availableField in availableFields" 
+                            class="dropdown-item" 
+                            @click="onSelectField(availableField)">
+                            <i class="bi bi-input-cursor me-2"></i>{{availableField}}
+                        </li>
                     </ul>
                 </div>
-                <ul class="list-group">
-                    <li v-for="field in entityFields" class="list-group-item d-flex justify-content-between align-items-start">
-                        <div>{{field}}</div>
-                        <span class="badge text-bg-secondary" @click="onDeleteField(field)">🗑</span>
-                    </li>
-                </ul>
+
+                <div class="field-list">
+                    <div v-for="field in entityFields" 
+                         class="field-item d-flex align-items-center p-2 rounded mb-2">
+                        <i class="bi bi-input-cursor me-2 text-primary"></i>
+                        <span class="flex-grow-1">{{field}}</span>
+                        <button class="btn btn-link btn-sm text-danger p-0" 
+                                @click="onDeleteField(field)">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </div>
+                    <div v-if="entityFields.length === 0" 
+                         class="text-center text-muted p-4">
+                        <i class="bi bi-layout-text-window-reverse display-4 mb-2"></i>
+                        <p>No fields added yet. Click "Add Field" to begin.</p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="onCancelButtonPressed">Cancel</button>
-                <button type="button" class="btn btn-success" data-bs-dismiss="modal" @click="onCreateButtonPressed" :disabled="isCreateEditDisabled">Create/Edit</button>
+                <button type="button" class="btn btn-outline-secondary" 
+                        data-bs-dismiss="modal" 
+                        @click="onCancelButtonPressed">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" 
+                        data-bs-dismiss="modal" 
+                        @click="onCreateButtonPressed" 
+                        :disabled="isCreateEditDisabled">
+                    <i class="bi bi-check-lg me-2"></i>Save Type
+                </button>
             </div>
         </div>
     </div>
