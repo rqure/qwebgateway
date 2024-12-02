@@ -1062,3 +1062,42 @@ body {
 }
 
 /* ...existing code... */
+
+/* Field list drag and drop styling */
+.field-item {
+    /* ...existing properties... */
+    user-select: none; /* Prevent text selection while dragging */
+}
+
+.field-item .drag-handle {
+    cursor: grab;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.field-item:hover .drag-handle {
+    opacity: 1;
+}
+
+.field-item.dragging {
+    opacity: 0.5;
+    border-style: dashed;
+}
+
+.field-item.drag-over {
+    border-color: rgb(var(--primary-rgb));
+    background: rgba(var(--primary-rgb), 0.1);
+    position: relative;
+}
+
+.field-item.drag-over::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -2px;
+    width: 100%;
+    height: 2px;
+    background: rgb(var(--primary-rgb));
+}
+
+/* ...existing code... */

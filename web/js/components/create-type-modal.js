@@ -40,9 +40,17 @@ function registerCreateTypeModalComponent(app, context) {
                 </div>
 
                 <div class="field-list">
-                    <div v-for="field in entityFields" 
-                         class="field-item mb-2">
+                    <div v-for="(field, index) in entityFields" 
+                         :key="field"
+                         class="field-item mb-2"
+                         draggable="true"
+                         @dragstart="onDragStart($event, index)"
+                         @dragover.prevent
+                         @dragenter="onDragEnter($event, index)"
+                         @drop="onDrop($event, index)"
+                         :class="{ 'dragging': draggedIndex === index }">
                         <div class="field-item-content">
+                            <i class="bi bi-grip-vertical text-secondary drag-handle me-1"></i>
                             <i class="bi bi-input-cursor text-primary"></i>
                             <span class="flex-grow-1">{{field}}</span>
                             <button class="btn btn-link btn-sm text-danger p-0" 
@@ -87,7 +95,9 @@ function registerCreateTypeModalComponent(app, context) {
                 allEntityTypes: [],
                 allFields: [],
                 database: context.qDatabaseInteractor,
-                isDatabaseConnected: false
+                isDatabaseConnected: false,
+                draggedIndex: null,
+                dropTargetIndex: null
             }
         },
 
@@ -171,6 +181,43 @@ function registerCreateTypeModalComponent(app, context) {
                 this.entityType = "";
                 this.entityFields = [];
             },
+
+            onDragStart(event, index) {
+                this.draggedIndex = index;
+                event.target.classList.add('dragging');
+                // Set drag data (required for Firefox)
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', index);
+            },
+
+            onDragEnter(event, index) {
+                if (this.draggedIndex === null) return;
+                
+                const items = document.querySelectorAll('.field-item');
+                items.forEach(item => item.classList.remove('drag-over'));
+                
+                if (this.draggedIndex !== index) {
+                    event.target.closest('.field-item').classList.add('drag-over');
+                }
+            },
+
+            onDrop(event, index) {
+                event.preventDefault();
+                const items = document.querySelectorAll('.field-item');
+                items.forEach(item => {
+                    item.classList.remove('dragging', 'drag-over');
+                });
+
+                if (this.draggedIndex !== null && this.draggedIndex !== index) {
+                    // Reorder the fields array
+                    const fields = [...this.entityFields];
+                    const [movedItem] = fields.splice(this.draggedIndex, 1);
+                    fields.splice(index, 0, movedItem);
+                    this.entityFields = fields;
+                }
+                
+                this.draggedIndex = null;
+            }
         },
         computed: {
             isCreateEditDisabled() {
