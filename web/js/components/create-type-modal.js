@@ -41,13 +41,15 @@ function registerCreateTypeModalComponent(app, context) {
 
                 <div class="field-list">
                     <div v-for="field in entityFields" 
-                         class="field-item d-flex align-items-center p-2 rounded mb-2">
-                        <i class="bi bi-input-cursor me-2 text-primary"></i>
-                        <span class="flex-grow-1">{{field}}</span>
-                        <button class="btn btn-link btn-sm text-danger p-0" 
-                                @click="onDeleteField(field)">
-                            <i class="bi bi-trash3"></i>
-                        </button>
+                         class="field-item mb-2">
+                        <div class="field-item-content">
+                            <i class="bi bi-input-cursor text-primary"></i>
+                            <span class="flex-grow-1">{{field}}</span>
+                            <button class="btn btn-link btn-sm text-danger p-0" 
+                                    @click="onDeleteField(field)">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
                     </div>
                     <div v-if="entityFields.length === 0" 
                          class="text-center text-muted p-4">
