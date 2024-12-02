@@ -42,7 +42,7 @@ function registerCreateFieldModalComponent(app, context) {
                             type="button" 
                             data-bs-toggle="dropdown">
                         <span>
-                            <i class="bi bi-code-square me-2"></i>
+                            <i :class="getFieldIcon(selectedFieldType)" class="field-type-icon me-2"></i>
                             {{selectedFieldType || 'Select field type...'}}
                         </span>
                         <i class="bi bi-chevron-down"></i>
@@ -51,7 +51,7 @@ function registerCreateFieldModalComponent(app, context) {
                         <li v-for="type in availableTypes" 
                             class="dropdown-item" 
                             @click="onTypeSelect(type)">
-                            <i class="bi bi-code-square me-2"></i>{{type}}
+                            <i :class="getFieldIcon(type)" class="field-type-icon me-2"></i>{{type}}
                         </li>
                     </ul>
                 </div>
@@ -80,7 +80,7 @@ function registerCreateFieldModalComponent(app, context) {
             return {
                 fieldName: "",
                 selectedFieldType: "",
-                availableTypes: context.qDatabaseInteractor.getAvailableFieldTypes(),
+                availableTypes: context.qDatabaseInteractor.getAvailableFieldTypes().filter(type => type !== 'LogMessage'),
                 database: context.qDatabaseInteractor,
                 isDatabaseConnected: false
             }
@@ -112,6 +112,23 @@ function registerCreateFieldModalComponent(app, context) {
             onTypeSelect(fieldType) {
                 const me = this;
                 me.selectedFieldType = fieldType;
+            },
+
+            getFieldIcon(fieldType) {
+                // Remove 'qdb.' prefix if present
+                const type = fieldType?.replace('qdb.', '') || '';
+                
+                const iconMap = {
+                    'Bool': 'bi bi-toggle2-on',
+                    'Int': 'bi bi-123',
+                    'Float': 'bi bi-graph-up',
+                    'String': 'bi bi-text-paragraph',
+                    'Timestamp': 'bi bi-calendar-event',
+                    'BinaryFile': 'bi bi-file-earmark-binary',
+                    'EntityReference': 'bi bi-link-45deg',
+                    'Transformation': 'bi bi-code-square'
+                };
+                return iconMap[type] || 'bi bi-dot';
             }
         },
         computed: {

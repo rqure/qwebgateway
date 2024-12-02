@@ -25,14 +25,21 @@ function registerCreateEntityModalComponent(app, context) {
                            autofocus>
                     <label for="entityNameInput">Entity Name</label>
                 </div>
-                <div class="form-floating">
-                    <select class="form-select form-select-lg" 
-                            id="entityTypeSelect" 
-                            v-model="entityType">
-                        <option value="" disabled>Select a type</option>
-                        <option v-for="t in availableEntityTypes" :value="t">{{t}}</option>
-                    </select>
-                    <label for="entityTypeSelect">Entity Type</label>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <h6 class="mb-0 text-secondary">Entity Type</h6>
+                    <hr class="flex-grow-1 my-0">
+                    <button class="btn btn-primary btn-sm" 
+                            type="button" 
+                            data-bs-toggle="dropdown">
+                        <i class="bi bi-box me-1"></i>{{entityType || 'Select Type'}}
+                    </button>
+                    <ul class="dropdown-menu scrollable-dropdown-menu w-100">
+                        <li v-for="type in availableEntityTypes" 
+                            class="dropdown-item" 
+                            @click="entityType = type">
+                            <i class="bi bi-box me-2"></i>{{type}}
+                        </li>
+                    </ul>
                 </div>
             </div>
             <div class="modal-footer">
@@ -41,7 +48,7 @@ function registerCreateEntityModalComponent(app, context) {
                         @click="onCancelButtonPressed">
                     Cancel
                 </button>
-                <button type="button" class="btn btn-success" 
+                <button type="button" class="btn btn-primary" 
                         data-bs-dismiss="modal" 
                         @click="onCreateButtonPressed" 
                         :disabled="isCreateDisabled">

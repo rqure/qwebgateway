@@ -144,7 +144,6 @@ function registerTreeContextMenuComponent(app, context) {
             },
 
             handleAction(action) {
-                const currentNode = this.targetNode;
                 this.hide();
                 
                 switch(action) {
