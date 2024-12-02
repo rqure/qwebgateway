@@ -355,9 +355,34 @@ body {
 
 .dropdown-menu {
     padding: 0.5rem;
-    max-height: 300px;
+    max-height: 60vh !important; /* Increased height */
     overflow-y: auto;
     overflow-x: hidden; /* Hide horizontal scrollbar */
+    position: fixed !important; /* Force fixed positioning */
+    transform: none !important; /* Prevent Bootstrap's transform */
+    margin-top: 0 !important; /* Remove default margin */
+}
+
+/* Add smooth scrolling for dropdowns */
+.dropdown-menu::-webkit-scrollbar {
+    width: 8px;
+    height: 100%; /* Ensure scrollbar spans full height */
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: rgba(var(--surface-bg), 0.5);
+    border-radius: 4px;
+    margin: 4px; /* Add some spacing around scrollbar */
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background: rgba(var(--primary-rgb), 0.2);
+    border-radius: 4px;
+    min-height: 40px; /* Ensure thumb is always visible */
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--primary-rgb), 0.3);
 }
 
 /* Theme switcher */
@@ -376,8 +401,9 @@ body {
 }
 
 .scrollable-dropdown-menu {
-    max-height: 200px;
-    overflow-y: scroll;
+    max-height: 60vh !important; /* Increased from 200px to 60% of viewport height */
+    overflow-y: auto;
+    padding: 0.5rem;
 }
 
 /* Context Menu */
@@ -567,9 +593,28 @@ body {
 
 .dropdown-menu {
     padding: 0.5rem;
-    max-height: 300px;
+    max-height: 60vh !important; /* Increased height */
     overflow-y: auto;
     overflow-x: hidden; /* Hide horizontal scrollbar */
+}
+
+/* Add smooth scrolling for dropdowns */
+.dropdown-menu::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: rgba(var(--surface-bg), 0.5);
+    border-radius: 4px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background: rgba(var(--primary-rgb), 0.2);
+    border-radius: 4px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--primary-rgb), 0.3);
 }
 
 .dropdown-item {
@@ -923,6 +968,31 @@ body {
 .field-update-leave-from {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* ...existing code... */
+
+/* Specific styling for create-entity-modal dropdown */
+.modal .dropdown-menu {
+    position: absolute !important; /* Override the fixed positioning */
+    transform: none !important;
+    max-height: 250px !important; /* Smaller max-height for modal dropdowns */
+    width: 100%;
+    margin-top: 2px !important;
+}
+
+.modal .dropdown .btn {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Ensure dropdown is above other modal content */
+.modal .dropdown {
+    position: relative;
+    z-index: 1056; /* Above modal backdrop */
 }
 
 /* ...existing code... */
