@@ -99,21 +99,14 @@ function registerTreeContextMenuComponent(app, context) {
 
         methods: {
             show(event, node) {
-                console.log('Show context menu:', event, node); // Debug log
+                console.log('Show context menu:', event, node);
                 event.preventDefault();
                 event.stopPropagation();
                 
                 this.targetNode = node;
                 this.visible = true;
                 
-                // Update treeStore selection
-                this.treeStore.selectNode({
-                    id: node.entityId,
-                    name: node.entityName,
-                    type: node.entityType
-                });
-                
-                // Position menu and handle screen boundaries
+                // Position menu handling
                 this.x = event.clientX;
                 this.y = event.clientY;
 

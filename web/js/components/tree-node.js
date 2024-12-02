@@ -149,6 +149,11 @@ function registerTreeNodeComponent(app, context) {
             },
 
             async onNodeSelect() {
+                // Move field loading logic to a separate method
+                await this.loadFields();
+            },
+
+            async loadFields() {
                 this.treeStore.selectNode(this.nodeData);
                 
                 // Query schema and fields for the selected entity
@@ -156,14 +161,14 @@ function registerTreeNodeComponent(app, context) {
                     const schemaEvent = await this.database.queryEntitySchema(this.nodeData.type);
                     this.treeStore.selectedNode.entitySchema = schemaEvent.schema;
 
-                    // Clear existing fields
-                    this.treeStore.selectedNode.entityFields = {};
-                    
-                    // Register for field notifications
+                    // Unregister old notifications before clearing fields
                     if (this.treeStore.selectedNode.notificationTokens.length > 0) {
                         await this.database.unregisterNotifications(this.treeStore.selectedNode.notificationTokens);
                         this.treeStore.selectedNode.notificationTokens = [];
                     }
+
+                    // Only clear fields after we've fetched the new schema
+                    this.treeStore.selectedNode.entityFields = {};
 
                     // Read all fields
                     const fieldRequests = schemaEvent.schema.getFieldsList().map(field => ({
@@ -183,7 +188,7 @@ function registerTreeNodeComponent(app, context) {
                     this.processFieldResults(readResults);
 
                 } catch (error) {
-                    qError(`[TreeNode::onNodeSelect] Failed to load entity data: ${error}`);
+                    qError(`[TreeNode::loadFields] Failed to load entity data: ${error}`);
                 }
             },
 
@@ -279,6 +284,9 @@ function registerTreeNodeComponent(app, context) {
             },
 
             showContextMenu(event) {
+                // Always trigger node selection first
+                this.onNodeSelect();
+                
                 context.contextMenuManager.show(event, {
                     entityId: this.nodeData.id,
                     entityType: this.nodeData.type,

@@ -26,6 +26,13 @@ async function main() {
             return oldId;
         },
         selectNode(node) {
+            // If selecting the same node, just update name/type in case they changed
+            if (this.selectedNode.entityId === node.id) {
+                this.selectedNode.entityName = node.name;
+                this.selectedNode.entityType = node.type;
+                return;
+            }
+            
             const oldId = this.clearSelection();
             if (oldId && oldId !== node.id) {
                 const oldNode = this.getNode(oldId);
