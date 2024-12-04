@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/rqure/qdb v1.2.85
+	github.com/rqure/qdb v1.2.87
 	google.golang.org/protobuf v1.35.2
 )
 
