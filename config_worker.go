@@ -4,24 +4,32 @@ import (
 	"unicode"
 
 	qdb "github.com/rqure/qdb/src"
+	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/data/entity"
+	"github.com/rqure/qlib/pkg/data/query"
+	"github.com/rqure/qlib/pkg/data/snapshot"
+	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/protobufs"
+	web "github.com/rqure/qlib/pkg/web/go"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ConfigWorker struct {
-	db                qdb.IDatabase
-	dbConnectionState qdb.ConnectionState_ConnectionStateEnum
+	store            data.Store
+	isStoreConnected bool
 }
 
-func NewConfigWorker(db qdb.IDatabase) *ConfigWorker {
+func NewConfigWorker(store data.Store) *ConfigWorker {
 	return &ConfigWorker{
-		db:                db,
-		dbConnectionState: qdb.ConnectionState_DISCONNECTED,
+		store:            store,
+		isStoreConnected: false,
 	}
 }
 
-func (w *ConfigWorker) Init() {
+func (w *ConfigWorker) Init(app.Handle) {
 
 }
 
@@ -34,68 +42,57 @@ func (w *ConfigWorker) DoWork() {
 }
 
 func (w *ConfigWorker) TriggerSchemaUpdate() {
-	root := w.db.FindEntities("Root")
-
-	for _, id := range root {
-		request := &qdb.DatabaseRequest{
-			Id:    id,
-			Field: "SchemaUpdateTrigger",
-		}
-
-		w.db.Read([]*qdb.DatabaseRequest{request})
-
-		if request.Success {
-			w.db.Write([]*qdb.DatabaseRequest{request})
-		}
+	for _, root := range query.New(w.store).ForType("Root").Execute() {
+		root.GetField("SchemaUpdateTrigger").WriteInt(0)
 	}
 }
 
 func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
-	client := args[0].(qdb.IWebClient)
-	msg := args[1].(*qdb.WebMessage)
+	client := args[0].(web.Client)
+	msg := args[1].(web.Message)
 
-	if msg.Payload.MessageIs(&qdb.WebConfigCreateEntityRequest{}) {
+	if msg.Payload.MessageIs(&protobufs.WebConfigCreateEntityRequest{}) {
 		w.onConfigCreateEntityRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigDeleteEntityRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigDeleteEntityRequest{}) {
 		w.onConfigDeleteEntityRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigGetEntityRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetEntityRequest{}) {
 		w.onConfigGetEntityRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigSetFieldSchemaRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigSetFieldSchemaRequest{}) {
 		w.onConfigSetFieldSchemaRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigGetFieldSchemaRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetFieldSchemaRequest{}) {
 		w.onConfigGetFieldSchemaRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigGetEntityTypesRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetEntityTypesRequest{}) {
 		w.onConfigGetEntityTypesRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigGetEntitySchemaRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetEntitySchemaRequest{}) {
 		w.onConfigGetEntitySchemaRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigSetEntitySchemaRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigSetEntitySchemaRequest{}) {
 		w.onConfigSetEntitySchemaRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigCreateSnapshotRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigCreateSnapshotRequest{}) {
 		w.onConfigCreateSnapshotRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigRestoreSnapshotRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigRestoreSnapshotRequest{}) {
 		w.onConfigRestoreSnapshotRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigGetAllFieldsRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetAllFieldsRequest{}) {
 		w.onConfigGetAllFieldsRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigGetRootRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetRootRequest{}) {
 		w.onConfigGetRootRequest(client, msg)
 	}
 }
 
-func (w *ConfigWorker) onConfigCreateEntityRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigCreateEntityRequest)
-	response := new(qdb.WebConfigCreateEntityResponse)
+func (w *ConfigWorker) onConfigCreateEntityRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigCreateEntityRequest)
+	rsp := new(protobufs.WebConfigCreateEntityResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigCreateEntityResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigCreateEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -103,13 +100,13 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client qdb.IWebClient, msg *q
 		return
 	}
 
-	qdb.Info("[ConfigWorker::onConfigCreateEntityRequest] Created entity: %v", request)
-	w.db.CreateEntity(request.Type, request.ParentId, request.Name)
+	log.Info("[ConfigWorker::onConfigCreateEntityRequest] Created entity: %v", req)
+	w.store.CreateEntity(req.Type, req.ParentId, req.Name)
 
-	response.Status = qdb.WebConfigCreateEntityResponse_SUCCESS
+	rsp.Status = protobufs.WebConfigCreateEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not marshal response: %v", err)
 		return
 	}
 
@@ -117,21 +114,21 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client qdb.IWebClient, msg *q
 	w.TriggerSchemaUpdate()
 }
 
-func (w *ConfigWorker) onConfigDeleteEntityRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigDeleteEntityRequest)
-	response := new(qdb.WebConfigDeleteEntityResponse)
+func (w *ConfigWorker) onConfigDeleteEntityRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigDeleteEntityRequest)
+	rsp := new(protobufs.WebConfigDeleteEntityResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigDeleteEntityResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigDeleteEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -139,13 +136,13 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client qdb.IWebClient, msg *q
 		return
 	}
 
-	qdb.Info("[ConfigWorker::onConfigDeleteEntityRequest] Deleted entity: %v", request)
-	w.db.DeleteEntity(request.Id)
+	log.Info("[ConfigWorker::onConfigDeleteEntityRequest] Deleted entity: %v", req)
+	w.store.DeleteEntity(req.Id)
 
-	response.Status = qdb.WebConfigDeleteEntityResponse_SUCCESS
+	rsp.Status = protobufs.WebConfigDeleteEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not marshal response: %v", err)
 		return
 	}
 
@@ -153,21 +150,21 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client qdb.IWebClient, msg *q
 	w.TriggerSchemaUpdate()
 }
 
-func (w *ConfigWorker) onConfigGetEntityRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigGetEntityRequest)
-	response := new(qdb.WebConfigGetEntityResponse)
+func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigGetEntityRequest)
+	rsp := new(protobufs.WebConfigGetEntityResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntityRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigGetEntityRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigGetEntityResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigGetEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -175,13 +172,13 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client qdb.IWebClient, msg *qdb.
 		return
 	}
 
-	entity := w.db.GetEntity(request.Id)
-	if entity == nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntityRequest] Could not get entity")
-		response.Status = qdb.WebConfigGetEntityResponse_FAILURE
+	ent := w.store.GetEntity(req.Id)
+	if ent == nil {
+		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not get entity")
+		rsp.Status = protobufs.WebConfigGetEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -189,32 +186,32 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client qdb.IWebClient, msg *qdb.
 		return
 	}
 
-	response.Entity = entity
-	response.Status = qdb.WebConfigGetEntityResponse_SUCCESS
+	rsp.Entity = entity.ToEntityPb(ent)
+	rsp.Status = protobufs.WebConfigGetEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigSetFieldSchemaRequest)
-	response := new(qdb.WebConfigSetFieldSchemaResponse)
+func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigSetFieldSchemaRequest)
+	rsp := new(protobufs.WebConfigSetFieldSchemaResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigSetFieldSchemaResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -222,12 +219,12 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	if request.Schema == nil {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Schema is nil.", request)
-		response.Status = qdb.WebConfigSetFieldSchemaResponse_FAILURE
+	if req.Schema == nil {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Schema is nil.", req)
+		rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -235,12 +232,12 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	if _, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(request.Schema.Type)); err != nil {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Schema type does not exist.", request)
-		response.Status = qdb.WebConfigSetFieldSchemaResponse_FAILURE
+	if _, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(req.Schema.Type)); err != nil {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Schema type does not exist.", req)
+		rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -248,12 +245,12 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	if request.Field == "" {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field is empty.", request)
-		response.Status = qdb.WebConfigSetFieldSchemaResponse_FAILURE
+	if req.Field == "" {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field is empty.", req)
+		rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -271,12 +268,12 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return true
 	}
 
-	if !isAlphanumeric(request.Field) {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field is not alphanumeric.", request)
-		response.Status = qdb.WebConfigSetFieldSchemaResponse_FAILURE
+	if !isAlphanumeric(req.Field) {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field is not alphanumeric.", req)
+		rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -284,12 +281,12 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	if request.Schema.Name != request.Field {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field and schema type do not match.", request)
-		response.Status = qdb.WebConfigSetFieldSchemaResponse_FAILURE
+	if req.Schema.Name != req.Field {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not handle request %v. Field and schema type do not match.", req)
+		rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -297,13 +294,13 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	qdb.Info("[ConfigWorker::onConfigSetFieldSchemaRequest] Set field schema: %v", request)
-	w.db.SetFieldSchema(request.Field, request.Schema)
+	log.Info("[ConfigWorker::onConfigSetFieldSchemaRequest] Set field schema: %v", req)
+	w.store.SetFieldSchema(req.Field, req.Schema)
 
-	response.Status = qdb.WebConfigSetFieldSchemaResponse_SUCCESS
+	rsp.Status = protobufs.WebConfigSetFieldSchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigSetFieldSchemaRequest] Could not marshal response: %v", err)
 		return
 	}
 
@@ -311,21 +308,21 @@ func (w *ConfigWorker) onConfigSetFieldSchemaRequest(client qdb.IWebClient, msg 
 	w.TriggerSchemaUpdate()
 }
 
-func (w *ConfigWorker) onConfigGetFieldSchemaRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigGetFieldSchemaRequest)
-	response := new(qdb.WebConfigGetFieldSchemaResponse)
+func (w *ConfigWorker) onConfigGetFieldSchemaRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigGetFieldSchemaRequest)
+	rsp := new(protobufs.WebConfigGetFieldSchemaResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigGetFieldSchemaResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigGetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -333,13 +330,13 @@ func (w *ConfigWorker) onConfigGetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	schema := w.db.GetFieldSchema(request.Field)
+	schema := w.store.GetFieldSchema(req.Field)
 	if schema == nil {
-		qdb.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not get field schema")
-		response.Status = qdb.WebConfigGetFieldSchemaResponse_FAILURE
+		log.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not get field schema")
+		rsp.Status = protobufs.WebConfigGetFieldSchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -347,53 +344,53 @@ func (w *ConfigWorker) onConfigGetFieldSchemaRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	response.Schema = schema
-	response.Status = qdb.WebConfigGetFieldSchemaResponse_SUCCESS
+	rsp.Schema = schema
+	rsp.Status = protobufs.WebConfigGetFieldSchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigGetFieldSchemaRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigGetEntityTypesRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigGetEntityTypesRequest)
-	response := new(qdb.WebConfigGetEntityTypesResponse)
+func (w *ConfigWorker) onConfigGetEntityTypesRequest(client web.Client, msg web.Message) {
+	request := new(protobufs.WebConfigGetEntityTypesRequest)
+	response := new(protobufs.WebConfigGetEntityTypesResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntityTypesRequest] Could not unmarshal request: %v", err)
+		log.Error("[ConfigWorker::onConfigGetEntityTypesRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	types := w.db.GetEntityTypes()
+	types := w.store.GetEntityTypes()
 
 	response.Types = types
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntityTypesRequest] Could not marshal response: %v", err)
+		log.Error("[ConfigWorker::onConfigGetEntityTypesRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigGetEntitySchemaRequest)
-	response := new(qdb.WebConfigGetEntitySchemaResponse)
+func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigGetEntitySchemaRequest)
+	rsp := new(protobufs.WebConfigGetEntitySchemaResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigGetEntitySchemaResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -401,13 +398,13 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client qdb.IWebClient, msg
 		return
 	}
 
-	schema := w.db.GetEntitySchema(request.Type)
-	if schema == nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not get entity schema")
-		response.Status = qdb.WebConfigGetEntitySchemaResponse_FAILURE
+	sch := w.store.GetEntitySchema(req.Type)
+	if sch == nil {
+		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not get entity schema")
+		rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -415,32 +412,32 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client qdb.IWebClient, msg
 		return
 	}
 
-	response.Schema = schema
-	response.Status = qdb.WebConfigGetEntitySchemaResponse_SUCCESS
+	rsp.Schema = entity.ToSchemaPb(sch)
+	rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigSetEntitySchemaRequest)
-	response := new(qdb.WebConfigSetEntitySchemaResponse)
+func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigSetEntitySchemaRequest)
+	rsp := new(protobufs.WebConfigSetEntitySchemaResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigSetEntitySchemaResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -458,12 +455,12 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client qdb.IWebClient, msg
 		return true
 	}
 
-	if !isAlphanumeric(request.Name) {
-		qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Entity type is not alphanumeric.", request)
-		response.Status = qdb.WebConfigSetEntitySchemaResponse_FAILURE
+	if !isAlphanumeric(req.Name) {
+		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Entity type is not alphanumeric.", req)
+		rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -471,52 +468,38 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client qdb.IWebClient, msg
 		return
 	}
 
-	for _, field := range request.Fields {
-		if w.db.GetFieldSchema(field) == nil {
-			qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Field schema does not exist.", request)
-			response.Status = qdb.WebConfigSetEntitySchemaResponse_FAILURE
-			msg.Header.Timestamp = timestamppb.Now()
-			if err := msg.Payload.MarshalFrom(response); err != nil {
-				qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
-				return
-			}
-
-			client.Write(msg)
-			return
-		}
-	}
-
-	qdb.Info("[ConfigWorker::onConfigSetEntitySchemaRequest] Set entity schema: %v", request)
-	w.db.SetEntitySchema(request.Name, &qdb.DatabaseEntitySchema{
-		Name:   request.Name,
-		Fields: request.Fields,
+	log.Info("[ConfigWorker::onConfigSetEntitySchemaRequest] Set entity schema: %v", req)
+	sch := entity.FromSchemaPb(req.Schema)
+	w.store.SetEntitySchema(req.Name, &qdb.DatabaseEntitySchema{
+		Name:   req.Name,
+		Fields: req.Fields,
 	})
 
-	response.Status = qdb.WebConfigSetEntitySchemaResponse_SUCCESS
+	rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
 		return
 	}
 	client.Write(msg)
 	w.TriggerSchemaUpdate()
 }
 
-func (w *ConfigWorker) onConfigCreateSnapshotRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigCreateSnapshotRequest)
-	response := new(qdb.WebConfigCreateSnapshotResponse)
+func (w *ConfigWorker) onConfigCreateSnapshotRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigCreateSnapshotRequest)
+	rsp := new(protobufs.WebConfigCreateSnapshotResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigCreateSnapshotResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigCreateSnapshotResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -524,35 +507,35 @@ func (w *ConfigWorker) onConfigCreateSnapshotRequest(client qdb.IWebClient, msg 
 		return
 	}
 
-	qdb.Info("[ConfigWorker::onConfigCreateSnapshotRequest] Created snapshot: %v", request)
-	snapshot := w.db.CreateSnapshot()
+	log.Info("[ConfigWorker::onConfigCreateSnapshotRequest] Created snapshot: %v", req)
+	ss := w.store.CreateSnapshot()
 
-	response.Snapshot = snapshot
-	response.Status = qdb.WebConfigCreateSnapshotResponse_SUCCESS
+	rsp.Snapshot = snapshot.ToPb(ss)
+	rsp.Status = protobufs.WebConfigCreateSnapshotResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigRestoreSnapshotRequest)
-	response := new(qdb.WebConfigRestoreSnapshotResponse)
+func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebConfigRestoreSnapshotRequest)
+	rsp := new(protobufs.WebConfigRestoreSnapshotResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not handle request %v. Database is not connected.", request)
-		response.Status = qdb.WebConfigRestoreSnapshotResponse_FAILURE
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not handle request %v. Database is not connected.", req)
+		rsp.Status = protobufs.WebConfigRestoreSnapshotResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -560,13 +543,13 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client qdb.IWebClient, msg
 		return
 	}
 
-	qdb.Info("[ConfigWorker::onConfigRestoreSnapshotRequest] Restored snapshot: %v", request)
-	w.db.RestoreSnapshot(request.Snapshot)
+	log.Info("[ConfigWorker::onConfigRestoreSnapshotRequest] Restored snapshot: %v", req)
+	w.store.RestoreSnapshot(snapshot.FromPb(req.Snapshot))
 
-	response.Status = qdb.WebConfigRestoreSnapshotResponse_SUCCESS
+	rsp.Status = protobufs.WebConfigRestoreSnapshotResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
 		return
 	}
 
@@ -574,20 +557,20 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client qdb.IWebClient, msg
 	w.TriggerSchemaUpdate()
 }
 
-func (w *ConfigWorker) onConfigGetAllFieldsRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigGetAllFieldsRequest)
-	response := new(qdb.WebConfigGetAllFieldsResponse)
+func (w *ConfigWorker) onConfigGetAllFieldsRequest(client web.Client, msg web.Message) {
+	request := new(protobufs.WebConfigGetAllFieldsRequest)
+	response := new(protobufs.WebConfigGetAllFieldsResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not unmarshal request: %v", err)
+		log.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not handle request %v. Database is not connected.", request)
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not handle request %v. Database is not connected.", request)
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
+			log.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -595,7 +578,7 @@ func (w *ConfigWorker) onConfigGetAllFieldsRequest(client qdb.IWebClient, msg *q
 		return
 	}
 
-	fields := w.db.GetFieldSchemas()
+	fields := w.store.GetFieldSchemas()
 
 	for _, field := range fields {
 		response.Fields = append(response.Fields, field.Name)
@@ -603,27 +586,27 @@ func (w *ConfigWorker) onConfigGetAllFieldsRequest(client qdb.IWebClient, msg *q
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
+		log.Error("[ConfigWorker::onConfigGetAllFieldsRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigGetRootRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebConfigGetRootRequest)
-	response := new(qdb.WebConfigGetRootResponse)
+func (w *ConfigWorker) onConfigGetRootRequest(client web.Client, msg web.Message) {
+	request := new(protobufs.WebConfigGetRootRequest)
+	response := new(protobufs.WebConfigGetRootResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetRootRequest] Could not unmarshal request: %v", err)
+		log.Error("[ConfigWorker::onConfigGetRootRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[ConfigWorker::onConfigGetRootRequest] Could not handle request %v. Database is not connected.", request)
+	if !w.isStoreConnected {
+		log.Error("[ConfigWorker::onConfigGetRootRequest] Could not handle request %v. Database is not connected.", request)
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
+			log.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -631,24 +614,24 @@ func (w *ConfigWorker) onConfigGetRootRequest(client qdb.IWebClient, msg *qdb.We
 		return
 	}
 
-	root := w.db.FindEntities("Root")
+	root := w.store.FindEntities("Root")
 
 	for _, id := range root {
 		response.RootId = id
 	}
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
+		log.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) OnDatabaseConnected() {
-	w.dbConnectionState = qdb.ConnectionState_CONNECTED
+func (w *ConfigWorker) OnStoreConnected() {
+	w.isStoreConnected = true
 }
 
-func (w *ConfigWorker) OnDatabaseDisconnected() {
-	w.dbConnectionState = qdb.ConnectionState_DISCONNECTED
+func (w *ConfigWorker) OnStoreDisconnected() {
+	w.isStoreConnected = true
 }

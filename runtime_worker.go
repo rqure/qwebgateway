@@ -1,28 +1,36 @@
 package main
 
 import (
-	qdb "github.com/rqure/qdb/src"
+	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/data/entity"
+	"github.com/rqure/qlib/pkg/data/notification"
+	"github.com/rqure/qlib/pkg/data/query"
+	"github.com/rqure/qlib/pkg/data/request"
+	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/protobufs"
+	web "github.com/rqure/qlib/pkg/web/go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type RuntimeWorker struct {
-	db                qdb.IDatabase
-	dbConnectionState qdb.ConnectionState_ConnectionStateEnum
+	store            data.Store
+	isStoreConnected bool
 
-	clientNotificationQueue  map[string]map[string][]*qdb.DatabaseNotification
-	clientNotificationTokens map[string]map[string]qdb.INotificationToken
+	clientNotificationQueue  map[string]map[string][]data.Notification
+	clientNotificationTokens map[string]map[string]data.NotificationToken
 }
 
-func NewRuntimeWorker(db qdb.IDatabase) *RuntimeWorker {
+func NewRuntimeWorker(store data.Store) *RuntimeWorker {
 	return &RuntimeWorker{
-		db:                       db,
-		dbConnectionState:        qdb.ConnectionState_DISCONNECTED,
-		clientNotificationQueue:  make(map[string]map[string][]*qdb.DatabaseNotification),
-		clientNotificationTokens: make(map[string]map[string]qdb.INotificationToken),
+		store:                    store,
+		isStoreConnected:         false,
+		clientNotificationQueue:  make(map[string]map[string][]data.Notification),
+		clientNotificationTokens: make(map[string]map[string]data.NotificationToken),
 	}
 }
 
-func (w *RuntimeWorker) Init() {
+func (w *RuntimeWorker) Init(app.Handle) {
 
 }
 
@@ -35,16 +43,16 @@ func (w *RuntimeWorker) DoWork() {
 }
 
 func (w *RuntimeWorker) OnClientConnected(args ...interface{}) {
-	client := args[0].(qdb.IWebClient)
-	w.clientNotificationQueue[client.Id()] = make(map[string][]*qdb.DatabaseNotification)
-	w.clientNotificationTokens[client.Id()] = make(map[string]qdb.INotificationToken)
+	client := args[0].(web.Client)
+	w.clientNotificationQueue[client.Id()] = make(map[string][]data.Notification)
+	w.clientNotificationTokens[client.Id()] = make(map[string]data.NotificationToken)
 }
 
 func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
 	clientId := args[0].(string)
 
 	for _, token := range w.clientNotificationTokens[clientId] {
-		qdb.Info("[RuntimeWorker::OnClientDisconnected] Unbinding notification token: %v", token)
+		log.Info("[RuntimeWorker::OnClientDisconnected] Unbinding notification token: %v", token)
 		token.Unbind()
 	}
 
@@ -53,46 +61,46 @@ func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
 }
 
 func (w *RuntimeWorker) OnNewClientMessage(args ...interface{}) {
-	client := args[0].(qdb.IWebClient)
-	msg := args[1].(*qdb.WebMessage)
+	client := args[0].(web.Client)
+	msg := args[1].(web.Message)
 
-	if msg.Payload.MessageIs(&qdb.WebRuntimeDatabaseRequest{}) {
+	if msg.Payload.MessageIs(&protobufs.WebRuntimeDatabaseRequest{}) {
 		w.onRuntimeDatabaseRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebRuntimeRegisterNotificationRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeRegisterNotificationRequest{}) {
 		w.onRuntimeRegisterNotificationRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebRuntimeUnregisterNotificationRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeUnregisterNotificationRequest{}) {
 		w.onRuntimeUnregisterNotificationRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetNotificationsRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeGetNotificationsRequest{}) {
 		w.onRuntimeGetNotificationsRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
 		w.onRuntimeGetDatabaseConnectionStatusRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebRuntimeGetEntitiesRequest{}) {
+	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeGetEntitiesRequest{}) {
 		w.onRuntimeGetEntitiesRequest(client, msg)
 	}
 }
 
-func (w *RuntimeWorker) OnDatabaseConnected() {
-	w.dbConnectionState = qdb.ConnectionState_CONNECTED
+func (w *RuntimeWorker) OnStoreConnected() {
+	w.isStoreConnected = true
 }
 
-func (w *RuntimeWorker) OnDatabaseDisconnected() {
-	w.dbConnectionState = qdb.ConnectionState_DISCONNECTED
+func (w *RuntimeWorker) OnStoreDisconnected() {
+	w.isStoreConnected = false
 }
 
-func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebRuntimeDatabaseRequest)
-	response := new(qdb.WebRuntimeDatabaseResponse)
+func (w *RuntimeWorker) onRuntimeDatabaseRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebRuntimeDatabaseRequest)
+	rsp := new(protobufs.WebRuntimeDatabaseResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	if w.dbConnectionState != qdb.ConnectionState_CONNECTED {
-		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Database is not connected.", request)
+	if !w.isStoreConnected {
+		log.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Database is not connected.", req)
 		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(response); err != nil {
-			qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
 			return
 		}
 
@@ -100,40 +108,45 @@ func (w *RuntimeWorker) onRuntimeDatabaseRequest(client qdb.IWebClient, msg *qdb
 		return
 	}
 
-	if request.RequestType == qdb.WebRuntimeDatabaseRequest_READ {
-		qdb.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Read request: %v", request.Requests)
-		w.db.Read(request.Requests)
-		response.Response = request.Requests
-	} else if request.RequestType == qdb.WebRuntimeDatabaseRequest_WRITE {
-		qdb.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Write request: %v", request.Requests)
-		w.db.Write(request.Requests)
-		response.Response = request.Requests
+	reqs := []data.Request{}
+	for _, r := range req.Requests {
+		reqs = append(reqs, request.FromPb(r))
+	}
+
+	if req.RequestType == protobufs.WebRuntimeDatabaseRequest_READ {
+		log.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Read request: %v", req.Requests)
+		w.store.Read(reqs...)
+		rsp.Response = req.Requests
+	} else if req.RequestType == protobufs.WebRuntimeDatabaseRequest_WRITE {
+		log.Info("[RuntimeWorker::onRuntimeDatabaseRequest] Write request: %v", req.Requests)
+		w.store.Write(reqs...)
+		rsp.Response = req.Requests
 	} else {
-		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Unknown request type.", request)
+		log.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not handle request %v. Unknown request type.", req)
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeDatabaseRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebRuntimeRegisterNotificationRequest)
-	response := new(qdb.WebRuntimeRegisterNotificationResponse)
+func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebRuntimeRegisterNotificationRequest)
+	rsp := new(protobufs.WebRuntimeRegisterNotificationResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	for _, request := range request.Requests {
-		token := w.db.Notify(request, qdb.NewNotificationCallback(func(notification *qdb.DatabaseNotification) {
-			if w.clientNotificationQueue[client.Id()][notification.Token] != nil {
-				w.clientNotificationQueue[client.Id()][notification.Token] = append(w.clientNotificationQueue[client.Id()][notification.Token], notification)
+	for _, cfg := range req.Requests {
+		token := w.store.Notify(notification.FromConfigPb(cfg), notification.NewCallback(func(n data.Notification) {
+			if w.clientNotificationQueue[client.Id()][n.GetToken()] != nil {
+				w.clientNotificationQueue[client.Id()][n.GetToken()] = append(w.clientNotificationQueue[client.Id()][n.GetToken()], n)
 			}
 		}))
 
@@ -143,29 +156,29 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client qdb.IWebClie
 		w.clientNotificationTokens[client.Id()][token.Id()] = token
 
 		if w.clientNotificationQueue[client.Id()][token.Id()] == nil {
-			w.clientNotificationQueue[client.Id()][token.Id()] = make([]*qdb.DatabaseNotification, 0)
+			w.clientNotificationQueue[client.Id()][token.Id()] = make([]data.Notification, 0)
 		}
 
-		qdb.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification token '%v' for client %s", token.Id(), client.Id())
+		log.Info("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Registered notification token '%v' for client %s", token.Id(), client.Id())
 
-		response.Tokens = append(response.Tokens, token.Id())
+		rsp.Tokens = append(rsp.Tokens, token.Id())
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeRegisterNotificationRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebRuntimeUnregisterNotificationRequest)
-	response := new(qdb.WebRuntimeUnregisterNotificationResponse)
+func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client web.Client, msg web.Message) {
+	request := new(protobufs.WebRuntimeUnregisterNotificationRequest)
+	response := new(protobufs.WebRuntimeUnregisterNotificationResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not unmarshal request: %v", err)
+		log.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
@@ -179,88 +192,82 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client qdb.IWebCl
 			delete(w.clientNotificationQueue[client.Id()], token)
 		}
 
-		qdb.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
+		log.Info("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Unregistered notification: %v for client %s", token, client.Id())
 	}
 
-	response.Status = qdb.WebRuntimeUnregisterNotificationResponse_SUCCESS
+	response.Status = protobufs.WebRuntimeUnregisterNotificationResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not marshal response: %v", err)
+		log.Error("[RuntimeWorker::onRuntimeUnregisterNotificationRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebRuntimeGetNotificationsRequest)
-	response := new(qdb.WebRuntimeGetNotificationsResponse)
+func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebRuntimeGetNotificationsRequest)
+	rsp := new(protobufs.WebRuntimeGetNotificationsResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	for token, notifications := range w.clientNotificationQueue[client.Id()] {
-		response.Notifications = append(response.Notifications, notifications...)
-		w.clientNotificationQueue[client.Id()][token] = make([]*qdb.DatabaseNotification, 0)
+	for tok, ntfs := range w.clientNotificationQueue[client.Id()] {
+		for _, n := range ntfs {
+			rsp.Notifications = append(rsp.Notifications, notification.ToPb(n))
+		}
+		w.clientNotificationQueue[client.Id()][tok] = make([]data.Notification, 0)
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeGetNotificationsRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebRuntimeGetDatabaseConnectionStatusRequest)
-	response := new(qdb.WebRuntimeGetDatabaseConnectionStatusResponse)
+func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebRuntimeGetDatabaseConnectionStatusRequest)
+	rsp := new(protobufs.WebRuntimeGetDatabaseConnectionStatusResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	response.Status = &qdb.ConnectionState{Raw: w.dbConnectionState}
+	rsp.Connected = w.isStoreConnected
 
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeGetDatabaseConnectionStatusRequest] Could not marshal response: %v", err)
 		return
 	}
 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(client qdb.IWebClient, msg *qdb.WebMessage) {
-	request := new(qdb.WebRuntimeGetEntitiesRequest)
-	response := new(qdb.WebRuntimeGetEntitiesResponse)
+func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(client web.Client, msg web.Message) {
+	req := new(protobufs.WebRuntimeGetEntitiesRequest)
+	rsp := new(protobufs.WebRuntimeGetEntitiesResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeGetEntitiesRequest] Could not unmarshal request: %v", err)
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeGetEntitiesRequest] Could not unmarshal request: %v", err)
 		return
 	}
 
-	entities := qdb.NewEntityFinder(w.db).Find(qdb.SearchCriteria{
-		EntityType: request.EntityType,
-	})
+	entities := query.New(w.store).ForType(req.EntityType).Execute()
 
-	for _, entity := range entities {
-		response.Entities = append(response.Entities, &qdb.DatabaseEntity{
-			Id:       entity.GetId(),
-			Type:     entity.GetType(),
-			Name:     entity.GetName(),
-			Parent:   entity.GetParent(),
-			Children: entity.GetChildren(),
-		})
+	for _, ent := range entities {
+		rsp.Entities = append(rsp.Entities, entity.ToEntityPb(ent))
 	}
 
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
-		qdb.Error("[RuntimeWorker::onRuntimeGetEntitiesRequest] Could not marshal response: %v", err)
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
+		log.Error("[RuntimeWorker::onRuntimeGetEntitiesRequest] Could not marshal response: %v", err)
 		return
 	}
 

@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 
-	qdb "github.com/rqure/qdb/src"
+	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/app/workers"
+	"github.com/rqure/qlib/pkg/data/store"
 )
 
 func getDatabaseAddress() string {
@@ -25,59 +27,41 @@ func getWebServiceAddress() string {
 }
 
 func main() {
-	db := qdb.NewRedisDatabase(qdb.RedisDatabaseConfig{
+	s := store.NewRedis(store.RedisConfig{
 		Address: getDatabaseAddress(),
 	})
 
-	dbWorker := qdb.NewDatabaseWorker(db)
-	webServiceWorker := qdb.NewWebServiceWorker(getWebServiceAddress())
-	configWorker := NewConfigWorker(db)
-	runtimeWorker := NewRuntimeWorker(db)
-	leaderElectionWorker := qdb.NewLeaderElectionWorker(db)
+	storeWorker := workers.NewStore(s)
+	webWorker := workers.NewWeb(getWebServiceAddress())
+	leadershipWorker := workers.NewLeadership(s)
+
+	configWorker := NewConfigWorker(s)
+	runtimeWorker := NewRuntimeWorker(s)
 	restApiWorker := NewRestApiWorker()
-	schemaValidator := qdb.NewSchemaValidator(db)
 
-	schemaValidator.AddEntity("Root", "SchemaUpdateTrigger")
+	storeWorker.Connected.Connect(leadershipWorker.OnStoreConnected)
+	storeWorker.Disconnected.Connect(leadershipWorker.OnStoreDisconnected)
 
-	dbWorker.Signals.SchemaUpdated.Connect(qdb.Slot(schemaValidator.ValidationRequired))
-	dbWorker.Signals.Connected.Connect(qdb.Slot(schemaValidator.ValidationRequired))
-	leaderElectionWorker.AddAvailabilityCriteria(func() bool {
-		return dbWorker.IsConnected() && schemaValidator.IsValid()
-	})
+	storeWorker.Connected.Connect(configWorker.OnStoreConnected)
+	storeWorker.Disconnected.Connect(configWorker.OnStoreDisconnected)
+	webWorker.Received.Connect(configWorker.OnNewClientMessage)
+	restApiWorker.Received.Connect(configWorker.OnNewClientMessage)
 
-	dbWorker.Signals.Connected.Connect(qdb.Slot(leaderElectionWorker.OnDatabaseConnected))
-	dbWorker.Signals.Disconnected.Connect(qdb.Slot(leaderElectionWorker.OnDatabaseDisconnected))
+	storeWorker.Connected.Connect(runtimeWorker.OnStoreConnected)
+	storeWorker.Disconnected.Connect(runtimeWorker.OnStoreDisconnected)
+	webWorker.Received.Connect(runtimeWorker.OnNewClientMessage)
+	webWorker.ClientConnected.Connect(runtimeWorker.OnClientConnected)
+	webWorker.ClientDisconnected.Connect(runtimeWorker.OnClientDisconnected)
+	restApiWorker.Received.Connect(runtimeWorker.OnNewClientMessage)
+	restApiWorker.ClientConnected.Connect(runtimeWorker.OnClientConnected)
+	restApiWorker.ClientDisconnected.Connect(runtimeWorker.OnClientDisconnected)
 
-	dbWorker.Signals.Connected.Connect(qdb.Slot(configWorker.OnDatabaseConnected))
-	dbWorker.Signals.Disconnected.Connect(qdb.Slot(configWorker.OnDatabaseDisconnected))
-	webServiceWorker.Signals.Received.Connect(qdb.SlotWithArgs(configWorker.OnNewClientMessage))
-	restApiWorker.Signals.Received.Connect(qdb.SlotWithArgs(configWorker.OnNewClientMessage))
-
-	dbWorker.Signals.Connected.Connect(qdb.Slot(runtimeWorker.OnDatabaseConnected))
-	dbWorker.Signals.Disconnected.Connect(qdb.Slot(runtimeWorker.OnDatabaseDisconnected))
-	webServiceWorker.Signals.Received.Connect(qdb.SlotWithArgs(runtimeWorker.OnNewClientMessage))
-	webServiceWorker.Signals.ClientConnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientConnected))
-	webServiceWorker.Signals.ClientDisconnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientDisconnected))
-	restApiWorker.Signals.Received.Connect(qdb.SlotWithArgs(runtimeWorker.OnNewClientMessage))
-	restApiWorker.Signals.ClientConnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientConnected))
-	restApiWorker.Signals.ClientDisconnected.Connect(qdb.SlotWithArgs(runtimeWorker.OnClientDisconnected))
-
-	// Create a new application configuration
-	config := qdb.ApplicationConfig{
-		Name: "webgateway",
-		Workers: []qdb.IWorker{
-			dbWorker,
-			leaderElectionWorker,
-			restApiWorker,
-			webServiceWorker,
-			configWorker,
-			runtimeWorker,
-		},
-	}
-
-	// Create a new application
-	app := qdb.NewApplication(config)
-
-	// Execute the application
-	app.Execute()
+	a := app.NewApplication("qdatastore")
+	a.AddWorker(storeWorker)
+	a.AddWorker(leadershipWorker)
+	a.AddWorker(restApiWorker)
+	a.AddWorker(webWorker)
+	a.AddWorker(configWorker)
+	a.AddWorker(runtimeWorker)
+	a.Execute()
 }

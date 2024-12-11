@@ -7,6 +7,11 @@ import (
 
 	"github.com/google/uuid"
 	qdb "github.com/rqure/qdb/src"
+	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/protobufs"
+	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
+	web "github.com/rqure/qlib/pkg/web/go"
 	jsonpb "google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,8 +25,8 @@ type ClientIdResponse struct {
 }
 
 type RestApiWebClient struct {
-	Request    *qdb.WebMessage
-	ResponseCh chan *qdb.WebMessage
+	Request    web.Message
+	ResponseCh chan web.Message
 	Token      *RestApiWebClientToken
 }
 
@@ -39,11 +44,11 @@ func (c *RestApiWebClient) Id() string {
 	return c.Request.Header.Id
 }
 
-func (c *RestApiWebClient) Read() *qdb.WebMessage {
+func (c *RestApiWebClient) Read() web.Message {
 	return c.Request
 }
 
-func (c *RestApiWebClient) Write(msg *qdb.WebMessage) {
+func (c *RestApiWebClient) Write(msg web.Message) {
 	c.ResponseCh <- msg
 }
 
@@ -51,22 +56,22 @@ func (c *RestApiWebClient) Close() {
 
 }
 
-type RestApiWorkerSignals struct {
-	ClientConnected    qdb.Signal
-	ClientDisconnected qdb.Signal
-	Received           qdb.Signal
-}
-
 type RestApiWorker struct {
+	ClientConnected    signalslots.Signal
+	ClientDisconnected signalslots.Signal
+	Received           signalslots.Signal
+
 	activeClients map[string]*RestApiWebClientToken
 	clientCh      chan *RestApiWebClient
-	Signals       RestApiWorkerSignals
 }
 
 func NewRestApiWorker() *RestApiWorker {
 	return &RestApiWorker{
-		activeClients: make(map[string]*RestApiWebClientToken),
-		clientCh:      make(chan *RestApiWebClient, 1024),
+		activeClients:      make(map[string]*RestApiWebClientToken),
+		clientCh:           make(chan *RestApiWebClient, 1024),
+		ClientConnected:    signal.NewSignal(),
+		ClientDisconnected: signal.NewSignal(),
+		Received:           signal.NewSignal(),
 	}
 }
 
@@ -75,22 +80,22 @@ func (w *RestApiWorker) Init() {
 		clientTimeout := DefaultClientTimeout
 		clientTimeoutStr := r.URL.Query().Get("clientTimeout")
 		if clientTimeoutStr != "" {
-			qdb.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", clientTimeoutStr)
+			log.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", clientTimeoutStr)
 			if timeout, err := time.ParseDuration(clientTimeoutStr); err == nil {
 				clientTimeout = timeout
 			} else {
-				qdb.Error("[RestApiWorker::Init::/make-client-id] Invalid clientTimeout: %v", err)
+				log.Error("[RestApiWorker::Init::/make-client-id] Invalid clientTimeout: %v", err)
 			}
 		}
 
 		requestTimeout := DefaultRequestTimeout
 		requestTimeoutStr := r.URL.Query().Get("requestTimeout")
 		if requestTimeoutStr != "" {
-			qdb.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
+			log.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
 			if timeout, err := time.ParseDuration(requestTimeoutStr); err == nil {
 				requestTimeout = timeout
 			} else {
-				qdb.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
+				log.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
 			}
 		}
 
@@ -99,13 +104,13 @@ func (w *RestApiWorker) Init() {
 		}
 
 		client := &RestApiWebClient{
-			Request: &qdb.WebMessage{
-				Header: &qdb.WebHeader{
+			Request: &protobufs.WebMessage{
+				Header: &protobufs.WebHeader{
 					Id:        response.ClientId,
 					Timestamp: timestamppb.Now(),
 				},
 			},
-			ResponseCh: make(chan *qdb.WebMessage, 1),
+			ResponseCh: make(chan web.Message, 1),
 			Token: &RestApiWebClientToken{
 				ClientId: response.ClientId,
 				Timeout:  clientTimeout,
@@ -124,7 +129,7 @@ func (w *RestApiWorker) Init() {
 			}
 			s, err := marshaller.Marshal(response)
 			if err != nil {
-				qdb.Error("[RestApiWorker::Init::/make-client-id] Failed to marshal response: %v", err)
+				log.Error("[RestApiWorker::Init::/make-client-id] Failed to marshal response: %v", err)
 				http.Error(wr, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -134,7 +139,7 @@ func (w *RestApiWorker) Init() {
 				<-timeout.C
 			}
 		case <-timeout.C:
-			qdb.Error("[RestApiWorker::Init::/make-client-id] Timeout waiting for response")
+			log.Error("[RestApiWorker::Init::/make-client-id] Timeout waiting for response")
 			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
 			return
 		}
@@ -142,27 +147,27 @@ func (w *RestApiWorker) Init() {
 
 	http.Handle("/api", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
 		client := &RestApiWebClient{
-			Request:    &qdb.WebMessage{},
-			ResponseCh: make(chan *qdb.WebMessage, 1),
+			Request:    &protobufs.WebMessage{},
+			ResponseCh: make(chan web.Message, 1),
 		}
 
 		// Parse request and assume it is a WebMessage in JSON form
 		if r.Body == nil {
-			qdb.Error("[RestApiWorker::Init::/api] Request body is nil")
+			log.Error("[RestApiWorker::Init::/api] Request body is nil")
 			http.Error(wr, "Request body is nil", http.StatusBadRequest)
 			return
 		}
 
 		rBody, err := io.ReadAll(r.Body)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/api] Failed to read request body: %v", err)
+			log.Error("[RestApiWorker::Init::/api] Failed to read request body: %v", err)
 			http.Error(wr, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		err = jsonpb.Unmarshal(rBody, client.Request)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/api] Failed to parse request: %v", err)
+			log.Error("[RestApiWorker::Init::/api] Failed to parse request: %v", err)
 			http.Error(wr, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -170,11 +175,11 @@ func (w *RestApiWorker) Init() {
 		requestTimeout := DefaultRequestTimeout
 		requestTimeoutStr := r.URL.Query().Get("requestTimeout")
 		if requestTimeoutStr != "" {
-			qdb.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
+			log.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
 			if timeout, err := time.ParseDuration(requestTimeoutStr); err == nil {
 				requestTimeout = timeout
 			} else {
-				qdb.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
+				log.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
 			}
 		}
 
@@ -190,7 +195,7 @@ func (w *RestApiWorker) Init() {
 			}
 			s, err := marshaller.Marshal(response)
 			if err != nil {
-				qdb.Error("[RestApiWorker::Init::/api] Failed to marshal response: %v", err)
+				log.Error("[RestApiWorker::Init::/api] Failed to marshal response: %v", err)
 				http.Error(wr, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -200,23 +205,23 @@ func (w *RestApiWorker) Init() {
 				<-timeout.C
 			}
 		case <-timeout.C:
-			qdb.Error("[RestApiWorker::Init::/api] Timeout waiting for response")
+			log.Error("[RestApiWorker::Init::/api] Timeout waiting for response")
 			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
 			return
 		}
 	}))
 
 	http.Handle("/examples/WebConfigCreateEntityRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigCreateEntityRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigCreateEntityRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -229,7 +234,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -238,16 +243,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigDeleteEntityRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigDeleteEntityRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigDeleteEntityRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -260,7 +265,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -269,16 +274,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigSetEntitySchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigSetEntitySchemaRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigSetEntitySchemaRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -291,7 +296,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -300,16 +305,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigCreateSnapshotRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigCreateSnapshotRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigCreateSnapshotRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -322,7 +327,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -331,16 +336,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigRestoreSnapshotRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigRestoreSnapshotRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigRestoreSnapshotRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -353,7 +358,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -362,16 +367,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigGetEntityTypesRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigGetEntityTypesRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigGetEntityTypesRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -384,7 +389,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -393,16 +398,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigGetEntitySchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigGetEntitySchemaRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigGetEntitySchemaRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -415,7 +420,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -424,16 +429,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigGetEntityRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigGetEntityRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigGetEntityRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -446,7 +451,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -455,16 +460,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigGetFieldSchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigGetFieldSchemaRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigGetFieldSchemaRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -477,7 +482,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -486,16 +491,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigSetFieldSchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigSetFieldSchemaRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigSetFieldSchemaRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -508,7 +513,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -517,16 +522,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigGetRootRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigGetRootRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigGetRootRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -539,7 +544,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -548,16 +553,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebConfigGetAllFieldsRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebConfigGetAllFieldsRequest{})
+		payload, err := anypb.New(&protobufs.WebConfigGetAllFieldsRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -570,7 +575,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -579,16 +584,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebRuntimeDatabaseRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebRuntimeDatabaseRequest{})
+		payload, err := anypb.New(&protobufs.WebRuntimeDatabaseRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -601,7 +606,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -610,16 +615,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebRuntimeRegisterNotificationRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebRuntimeRegisterNotificationRequest{})
+		payload, err := anypb.New(&protobufs.WebRuntimeRegisterNotificationRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -632,7 +637,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -641,16 +646,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebRuntimeGetNotificationsRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebRuntimeGetNotificationsRequest{})
+		payload, err := anypb.New(&protobufs.WebRuntimeGetNotificationsRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Timestamp: timestamppb.Now(),
 				Id:        uuid.NewString(),
 			},
@@ -663,7 +668,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -672,16 +677,16 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebRuntimeUnregisterNotificationRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebRuntimeUnregisterNotificationRequest{})
+		payload, err := anypb.New(&protobufs.WebRuntimeUnregisterNotificationRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
-			Header: &qdb.WebHeader{
+		response := &protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Id:        uuid.NewString(),
 				Timestamp: timestamppb.Now(),
 			},
@@ -694,7 +699,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -703,17 +708,17 @@ func (w *RestApiWorker) Init() {
 	}))
 
 	http.Handle("/examples/WebRuntimeGetDatabaseConnectionStatusRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&qdb.WebRuntimeGetDatabaseConnectionStatusRequest{})
+		payload, err := anypb.New(&protobufs.WebRuntimeGetDatabaseConnectionStatusRequest{})
 
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to create payload: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		response := &qdb.WebMessage{
+		response := &protobufs.WebMessage{
 			Payload: payload,
-			Header: &qdb.WebHeader{
+			Header: &protobufs.WebHeader{
 				Id:        uuid.NewString(),
 				Timestamp: timestamppb.Now(),
 			},
@@ -725,7 +730,7 @@ func (w *RestApiWorker) Init() {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			qdb.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to marshal response: %v", err)
+			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -743,7 +748,7 @@ func (w *RestApiWorker) DoWork() {
 		if time.Since(token.ExpireAt) > 0 {
 			qdb.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for %v, disconnecting", clientId, token.Timeout)
 			delete(w.activeClients, clientId)
-			w.Signals.ClientDisconnected.Emit(clientId)
+			w.ClientDisconnected.Emit(clientId)
 		}
 	}
 
@@ -753,23 +758,23 @@ func (w *RestApiWorker) DoWork() {
 			if client.Token != nil {
 				qdb.Info("[RestApiWorker::DoWork] New client connected: %v", client.Id())
 				w.activeClients[client.Id()] = client.Token
-				w.Signals.ClientConnected.Emit(client)
-				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
+				w.ClientConnected.Emit(client)
+				client.Request.Header.AuthenticationStatus = protobufs.WebHeader_AUTHENTICATED
 				client.Write(client.Request)
 			} else if token, ok := w.activeClients[client.Id()]; ok {
 				token.ExpireAt = time.Now().Add(token.Timeout)
-				client.Request.Header.AuthenticationStatus = qdb.WebHeader_AUTHENTICATED
+				client.Request.Header.AuthenticationStatus = protobufs.WebHeader_AUTHENTICATED
 				w.onRequest(client)
 			} else {
 				if client.Request == nil {
-					client.Request = &qdb.WebMessage{}
+					client.Request = &protobufs.WebMessage{}
 				}
 
 				if client.Request.Header == nil {
-					client.Request.Header = &qdb.WebHeader{}
+					client.Request.Header = &protobufs.WebHeader{}
 				}
 
-				client.Request.Header.AuthenticationStatus = qdb.WebHeader_UNAUTHENTICATED
+				client.Request.Header.AuthenticationStatus = protobufs.WebHeader_UNAUTHENTICATED
 				client.Request.Payload = nil
 				client.Write(client.Request)
 			}
@@ -780,7 +785,7 @@ func (w *RestApiWorker) DoWork() {
 }
 
 func (w *RestApiWorker) onRequest(client *RestApiWebClient) {
-	qdb.Trace("[RestApiWorker::onRequest] Received request from client: %v", client.Request)
+	log.Trace("[RestApiWorker::onRequest] Received request from client: %v", client.Request)
 
-	w.Signals.Received.Emit(client, client.Request)
+	w.Received.Emit(client, client.Request)
 }
