@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	qdb "github.com/rqure/qdb/src"
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"github.com/rqure/qlib/pkg/signalslots"
@@ -69,13 +70,13 @@ func NewRestApiWorker() *RestApiWorker {
 	return &RestApiWorker{
 		activeClients:      make(map[string]*RestApiWebClientToken),
 		clientCh:           make(chan *RestApiWebClient, 1024),
-		ClientConnected:    signal.NewSignal(),
-		ClientDisconnected: signal.NewSignal(),
-		Received:           signal.NewSignal(),
+		ClientConnected:    signal.New(),
+		ClientDisconnected: signal.New(),
+		Received:           signal.New(),
 	}
 }
 
-func (w *RestApiWorker) Init() {
+func (w *RestApiWorker) Init(app.Handle) {
 	http.HandleFunc("/make-client-id", func(wr http.ResponseWriter, r *http.Request) {
 		clientTimeout := DefaultClientTimeout
 		clientTimeoutStr := r.URL.Query().Get("clientTimeout")
@@ -483,37 +484,6 @@ func (w *RestApiWorker) Init() {
 		s, err := marshaller.Marshal(response)
 		if err != nil {
 			log.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to marshal response: %v", err)
-			http.Error(wr, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		wr.Write([]byte(s))
-	}))
-
-	http.Handle("/examples/WebConfigSetFieldSchemaRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&protobufs.WebConfigSetFieldSchemaRequest{})
-
-		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to create payload: %v", err)
-			http.Error(wr, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		response := &protobufs.WebMessage{
-			Header: &protobufs.WebHeader{
-				Timestamp: timestamppb.Now(),
-				Id:        uuid.NewString(),
-			},
-			Payload: payload,
-		}
-
-		marshaller := &jsonpb.MarshalOptions{
-			EmitUnpopulated:   true,
-			EmitDefaultValues: true,
-		}
-		s, err := marshaller.Marshal(response)
-		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigSetFieldSchemaRequest] Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
