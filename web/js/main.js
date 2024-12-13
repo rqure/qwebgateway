@@ -95,7 +95,7 @@ async function main() {
 
     qEntityStore.runInBackground(true);
 
-    CURRENT_LOG_LEVEL=Q_LOG_LEVELS.DEBUG;
+    Q_CURRENT_LOG_LEVEL=Q_LOG_LEVELS.DEBUG;
 
     // Add keyboard shortcuts
     document.addEventListener('keydown', (e) => {
