@@ -1,3 +1,5 @@
+const qEntityStore = new QEntityStore();
+
 async function main() {
     const createDefaultNode = () => ({
         entityId: "",
@@ -68,7 +70,6 @@ async function main() {
     });
     
     const context = {
-        qDatabaseInteractor: new DatabaseInteractor(),
         treeStore,
         contextMenuManager: Vue.reactive({
             instance: null,
@@ -92,9 +93,9 @@ async function main() {
 
     app.mount('#desktop');
 
-    context.qDatabaseInteractor.runInBackground(true);
+    qEntityStore.runInBackground(true);
 
-    CURRENT_LOG_LEVEL=LOG_LEVELS.DEBUG;
+    CURRENT_LOG_LEVEL=Q_LOG_LEVELS.DEBUG;
 
     // Add keyboard shortcuts
     document.addEventListener('keydown', (e) => {

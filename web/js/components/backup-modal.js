@@ -29,7 +29,7 @@ function registerBackupModalComponent(app, context) {
                 <div class="backup-actions">
                     <button class="btn btn-primary btn-lg w-100 mb-3" 
                             @click="onBackupButtonClicked" 
-                            :disabled="!isDatabaseConnected || isLoading">
+                            :disabled="isLoading">
                         <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
                         <i v-else class="bi bi-camera me-2"></i>
                         {{isLoading ? 'Creating Snapshot...' : 'Create Snapshot'}}
@@ -48,32 +48,31 @@ function registerBackupModalComponent(app, context) {
 </div>`,
 
         data() {
-            context.qDatabaseInteractor
+            qEntityStore
                 .getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
 
             return {
                 blobUrl: "",
-                database: context.qDatabaseInteractor,
-                isDatabaseConnected: false,
+                
                 isLoading: false
             }
         },
 
         mounted() {
-            if (this.database.isConnected()) {
-                this.onDatabaseConnected();
+            if (qEntityStore.isConnected()) {
+                this.onStoreConnected();
             }            
         },
 
         methods: {
-            onDatabaseConnected() {
-                this.isDatabaseConnected = true;
+            onStoreConnected() {
+                
             },
 
-            onDatabaseDisconnected() {
-                this.isDatabaseConnected = false;
+            onStoreDisconnected() {
+                
             },
 
             onCreateSnapshot(event) {
@@ -95,7 +94,7 @@ function registerBackupModalComponent(app, context) {
 
             onBackupButtonClicked() {
                 this.isLoading = true;
-                this.database
+                qEntityStore
                     .createSnapshot()
                     .then(event => this.onCreateSnapshot(event))
                     .catch(error => qError(`[BackupModal::onBackupButtonClicked] Failed to create database snapshot: ${error}`))

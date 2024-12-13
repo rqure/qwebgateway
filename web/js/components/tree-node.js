@@ -51,7 +51,7 @@ function registerTreeNodeComponent(app, context) {
             // Register this node instance with the store
             this.treeStore.registerNode(this.entityId || "", this);
             
-            if (this.database.isConnected()) {
+            if (qEntityStore.isConnected()) {
                 await this.initializeNode();
                 if (this.entityId === "") {
                     // Only root node needs to listen for schema updates
@@ -60,22 +60,22 @@ function registerTreeNodeComponent(app, context) {
             }
 
             // Set up database event listeners
-            this.database.getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+            qEntityStore.getEventManager()
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
         },
 
         beforeUnmount() {
             this.treeStore.unregisterNode(this.entityId);
             // Clean up notifications if this is root node
             if (this.notificationToken) {
-                this.database.unregisterNotifications([this.notificationToken]);
+                qEntityStore.unregisterNotifications([this.notificationToken]);
             }
         },
 
         computed: {
             database() {
-                return context.qDatabaseInteractor;
+                return qEntityStore;
             },
             isSelected() {
                 return this.treeStore.selectedNode.entityId === this.entityId;
@@ -89,12 +89,12 @@ function registerTreeNodeComponent(app, context) {
             async initializeNode() {
                 try {
                     if (this.entityId === "") {
-                        const rootEvent = await this.database.queryRootEntityId();
+                        const rootEvent = await qEntityStore.queryRootEntityId();
                         this.nodeData.id = rootEvent.rootId;
                         await this.registerSchemaUpdateListener();
                     }
                     
-                    const entityEvent = await this.database.queryEntity(this.nodeData.id);
+                    const entityEvent = await qEntityStore.queryEntity(this.nodeData.id);
                     this.updateNodeFromEntity(entityEvent.entity);
                 } catch (error) {
                     qError(`[TreeNode::initializeNode] Failed to initialize node ${this.entityId}: ${error}`);
@@ -118,7 +118,7 @@ function registerTreeNodeComponent(app, context) {
 
             async registerSchemaUpdateListener() {
                 try {
-                    const event = await this.database.registerNotifications([
+                    const event = await qEntityStore.registerNotifications([
                         {type: "Root", field: "SchemaUpdateTrigger"}
                     ], this.onSchemaUpdate.bind(this));
                     this.notificationToken = event.tokens[0];
@@ -137,11 +137,11 @@ function registerTreeNodeComponent(app, context) {
                 }
             },
 
-            onDatabaseConnected() {
+            onStoreConnected() {
                 this.initializeNode();
             },
 
-            onDatabaseDisconnected() {
+            onStoreDisconnected() {
                 // Clear node data but maintain structure
                 this.nodeData.name = "";
                 this.nodeData.type = "";
@@ -158,12 +158,12 @@ function registerTreeNodeComponent(app, context) {
                 
                 // Query schema and fields for the selected entity
                 try {
-                    const schemaEvent = await this.database.queryEntitySchema(this.nodeData.type);
+                    const schemaEvent = await qEntityStore.queryEntitySchema(this.nodeData.type);
                     this.treeStore.selectedNode.entitySchema = schemaEvent.schema;
 
                     // Unregister old notifications before clearing fields
                     if (this.treeStore.selectedNode.notificationTokens.length > 0) {
-                        await this.database.unregisterNotifications(this.treeStore.selectedNode.notificationTokens);
+                        await qEntityStore.unregisterNotifications(this.treeStore.selectedNode.notificationTokens);
                         this.treeStore.selectedNode.notificationTokens = [];
                     }
 
@@ -173,18 +173,18 @@ function registerTreeNodeComponent(app, context) {
                     // Read all fields
                     const fieldRequests = schemaEvent.schema.getFieldsList().map(field => ({
                         id: this.nodeData.id,
-                        field: field
+                        field: field.getName()
                     }));
 
                     // Register notifications for fields
-                    const notifyEvent = await this.database.registerNotifications(
+                    const notifyEvent = await qEntityStore.registerNotifications(
                         fieldRequests,
                         this.onFieldNotification.bind(this)
                     );
                     this.treeStore.selectedNode.notificationTokens = notifyEvent.tokens;
 
                     // Read field values
-                    const readResults = await this.database.read(fieldRequests);
+                    const readResults = await qEntityStore.read(fieldRequests);
                     this.processFieldResults(readResults);
 
                 } catch (error) {
@@ -211,16 +211,16 @@ function registerTreeNodeComponent(app, context) {
                 model.typeClass = protoClass;
                 model.typeName = fieldValue.getTypeName();
                 
-                if (model.typeName !== 'qdb.Transformation') {
+                if (model.typeName !== 'protobufs.Transformation') {
                     model.value = protoClass.deserializeBinary(fieldValue.getValue_asU8()).getRaw();
                     
-                    if (protoClass === proto.qdb.Timestamp) {
+                    if (protoClass === proto.protobufs.Timestamp) {
                         model.value = model.value.toDate().toLocaleString('sv-SE', {
                             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                         });
                     }
 
-                    if (protoClass === proto.qdb.BinaryFile) {
+                    if (protoClass === proto.protobufs.BinaryFile) {
                         fetch(model.value)
                             .then(res => res.blob())
                             .then(blob => {
@@ -253,14 +253,14 @@ function registerTreeNodeComponent(app, context) {
                     };
 
                     // Handle special field types
-                    if (protoClass === proto.qdb.Timestamp) {
+                    if (protoClass === proto.protobufs.Timestamp) {
                         this.treeStore.selectedNode.entityFields[fieldName].value = 
                             this.treeStore.selectedNode.entityFields[fieldName].value.toDate().toLocaleString('sv-SE', {
                                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                             });
                     }
 
-                    if (protoClass === proto.qdb.BinaryFile) {
+                    if (protoClass === proto.protobufs.BinaryFile) {
                         fetch(this.treeStore.selectedNode.entityFields[fieldName].value)
                             .then(res => res.blob())
                             .then(blob => {

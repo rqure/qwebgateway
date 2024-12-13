@@ -72,31 +72,30 @@ function registerCreateFieldModalComponent(app, context) {
     </div>
 </div>`,
         data() {
-            context.qDatabaseInteractor
+            qEntityStore
                 .getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
 
             return {
                 fieldName: "",
                 selectedFieldType: "",
-                availableTypes: context.qDatabaseInteractor.getAvailableFieldTypes().filter(type => type !== 'LogMessage'),
-                database: context.qDatabaseInteractor,
-                isDatabaseConnected: false
+                availableTypes: qEntityStore.getAvailableFieldTypes().filter(type => type !== 'LogMessage'),
+                
             }
         },
 
         mounted() {
-            this.isDatabaseConnected = this.database.isConnected();
+            
         },
 
         methods: {
-            onDatabaseConnected() {
-                this.isDatabaseConnected = true;
+            onStoreConnected() {
+                
             },
 
-            onDatabaseDisconnected() {
-                this.isDatabaseConnected = false;
+            onStoreDisconnected() {
+                
             },
 
             onCancelButtonPressed() {
@@ -106,7 +105,7 @@ function registerCreateFieldModalComponent(app, context) {
             },
 
             onCreateButtonPressed() {
-                this.database.createField(this.fieldName, this.selectedFieldType);
+                qEntityStore.createField(this.fieldName, this.selectedFieldType);
             },
 
             onTypeSelect(fieldType) {
@@ -115,8 +114,8 @@ function registerCreateFieldModalComponent(app, context) {
             },
 
             getFieldIcon(fieldType) {
-                // Remove 'qdb.' prefix if present
-                const type = fieldType?.replace('qdb.', '') || '';
+                // Remove 'protobufs.' prefix if present
+                const type = fieldType?.replace('protobufs.', '') || '';
                 
                 const iconMap = {
                     'Bool': 'bi bi-toggle2-on',
@@ -134,7 +133,7 @@ function registerCreateFieldModalComponent(app, context) {
         computed: {
             isCreateDisabled() {
                 const me = this;
-                return me.fieldName.length == 0 || me.selectedFieldType.length == 0 || !me.isDatabaseConnected;
+                return me.fieldName.length == 0 || me.selectedFieldType.length == 0;
             },
         }
     })

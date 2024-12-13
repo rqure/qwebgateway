@@ -45,31 +45,30 @@ function registerRestoreModalComponent(app, context) {
 </div>`,
 
         data() {
-            context.qDatabaseInteractor
+            qEntityStore
                 .getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
 
             return {
                 snapshot: null,
-                database: context.qDatabaseInteractor,
-                isDatabaseConnected: false
+                
             }
         },
 
         mounted() {
-            if (this.database.isConnected()) {
-                this.onDatabaseConnected();
+            if (qEntityStore.isConnected()) {
+                this.onStoreConnected();
             }
         },
 
         methods: {
-            onDatabaseConnected() {
-                this.isDatabaseConnected = true;
+            onStoreConnected() {
+                
             },
 
-            onDatabaseDisconnected() {
-                this.isDatabaseConnected = false;
+            onStoreDisconnected() {
+                
             },
 
             onCancelButtonPressed() {
@@ -91,7 +90,7 @@ function registerRestoreModalComponent(app, context) {
             },
 
             onRestoreButtonPressed() {
-                this.database
+                qEntityStore
                     .restoreSnapshot(this.snapshot)
                     .catch(error => qError(`[RestoreModal::onRestoreButtonPressed] Failed to restore database: ${error}`));
                 

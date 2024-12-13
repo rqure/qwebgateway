@@ -522,37 +522,6 @@ func (w *RestApiWorker) Init(app.Handle) {
 		wr.Write([]byte(s))
 	}))
 
-	http.Handle("/examples/WebConfigGetAllFieldsRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		payload, err := anypb.New(&protobufs.WebConfigGetAllFieldsRequest{})
-
-		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to create payload: %v", err)
-			http.Error(wr, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		response := &protobufs.WebMessage{
-			Header: &protobufs.WebHeader{
-				Timestamp: timestamppb.Now(),
-				Id:        uuid.NewString(),
-			},
-			Payload: payload,
-		}
-
-		marshaller := &jsonpb.MarshalOptions{
-			EmitUnpopulated:   true,
-			EmitDefaultValues: true,
-		}
-		s, err := marshaller.Marshal(response)
-		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetAllFieldsRequest] Failed to marshal response: %v", err)
-			http.Error(wr, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		wr.Write([]byte(s))
-	}))
-
 	http.Handle("/examples/WebRuntimeDatabaseRequest", http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
 		payload, err := anypb.New(&protobufs.WebRuntimeDatabaseRequest{})
 

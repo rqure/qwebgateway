@@ -84,51 +84,40 @@ function registerCreateTypeModalComponent(app, context) {
 </div>`,
 
         data() {
-            context.qDatabaseInteractor
+            qEntityStore
                 .getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
 
             return {
                 entityType: "",
                 entityFields: [],
                 allEntityTypes: [],
                 allFields: [],
-                database: context.qDatabaseInteractor,
-                isDatabaseConnected: false,
+                
                 draggedIndex: null,
                 dropTargetIndex: null
             }
         },
 
         mounted() {
-            if (this.database.isConnected()) {
-                this.onDatabaseConnected();
+            if (qEntityStore.isConnected()) {
+                this.onStoreConnected();
             }
         },
 
         methods: {
-            onDatabaseConnected() {
-                this.isDatabaseConnected = true;
+            onStoreConnected() {
+                
 
-                this.database
+                qEntityStore
                     .queryAllEntityTypes()
                     .then(event => this.onQueryAllEntityTypes(event))
                     .catch(error => qError(`[CreateTypeModal::onDatabaseConnected] ${error}`));
-
-                this.database
-                    .queryAllFields()
-                    .then(event => this.onQueryAllFields(event))
-                    .catch(error => qError(`[CreateTypeModal::onDatabaseConnected] ${error}`));
             },
 
-            onDatabaseDisconnected() {
-                this.isDatabaseConnected = false;
-            },
-
-            onQueryAllFields(event) {
-                this.allFields = event.fields;
-                this.allFields.sort();
+            onStoreDisconnected() {
+                
             },
 
             onQueryAllEntityTypes(event) {
@@ -158,7 +147,7 @@ function registerCreateTypeModalComponent(app, context) {
                     return;
                 }
 
-                this.database
+                qEntityStore
                     .queryEntitySchema(this.entityType)
                     .then(event => this.onQueryEntitySchema(event))
                     .catch(error => qError(`[CreateTypeModal::onEntityTypeChange] ${error}`));
@@ -170,11 +159,11 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             onCreateButtonPressed() {
-                const request = new proto.qdb.WebConfigSetEntitySchemaRequest();
+                const request = new proto.protobufs.WebConfigSetEntitySchemaRequest();
                 request.setName(this.entityType);
                 request.setFieldsList(this.entityFields);
 
-                this.database
+                qEntityStore
                     .createOrUpdateEntityType(this.entityType, this.entityFields.slice())
                     .catch(error => qError(`[CreateTypeModal::onCreateButtonPressed] Failed to create entity type: ${error}`));
                 
@@ -221,7 +210,7 @@ function registerCreateTypeModalComponent(app, context) {
         },
         computed: {
             isCreateEditDisabled() {
-                return this.entityType.length == 0 || !this.isDatabaseConnected;
+                return this.entityType.length == 0;
             },
 
             availableFields() {

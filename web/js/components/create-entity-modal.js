@@ -62,40 +62,35 @@ function registerCreateEntityModalComponent(app, context) {
         inject: ['treeStore'],
 
         data() {
-            context.qDatabaseInteractor
+            qEntityStore
                 .getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
 
             return {
                 entityName: "",
                 entityType: "",
                 availableEntityTypes: [],
-                database: context.qDatabaseInteractor,
-                isDatabaseConnected: false
+                
             }
         },
         
         mounted() {
-            if (this.database.isConnected()) {
-                this.onDatabaseConnected();
+            if (qEntityStore.isConnected()) {
+                this.onStoreConnected();
             }
         },
 
         methods: {
-            onDatabaseConnected() {
-                this.isDatabaseConnected = true;
-                
-                if (this.isDatabaseConnected) {
-                    this.database
-                        .queryAllEntityTypes()
-                        .then(event => this.onQueryAllEntityTypes(event))
-                        .catch(error => qError(`[CreateEntityModal::onDatabaseConnected] ${error}`));
-                }
+            onStoreConnected() {
+                qEntityStore
+                    .queryAllEntityTypes()
+                    .then(event => this.onQueryAllEntityTypes(event))
+                    .catch(error => qError(`[CreateEntityModal::onDatabaseConnected] ${error}`));
             },
 
-            onDatabaseDisconnected() {
-                this.isDatabaseConnected = false;
+            onStoreDisconnected() {
+                
             },
 
             onQueryAllEntityTypes(event) {
@@ -106,7 +101,7 @@ function registerCreateEntityModalComponent(app, context) {
 
             async onCreateButtonPressed() {
                 try {
-                    await this.database.createEntity(
+                    await qEntityStore.createEntity(
                         this.treeStore.selectedNode.entityId,
                         this.entityName,
                         this.entityType
@@ -132,7 +127,7 @@ function registerCreateEntityModalComponent(app, context) {
         },
         computed: {
             isCreateDisabled() {
-                return this.entityName.length == 0 || this.entityType.length == 0 || !this.isDatabaseConnected;
+                return this.entityName.length == 0 || this.entityType.length == 0;
             }
         }
     })

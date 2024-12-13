@@ -50,10 +50,10 @@ function registerEntityViewerComponent(app, context) {
                 </div>
                 <div class="col-md-9">
                     <div class="field-value">
-                        <transition name="field-update" v-if="field.typeName !== 'qdb.Transformation'">
+                        <transition name="field-update" v-if="field.typeName !== 'protobufs.Transformation'">
                             <div :key="field.value">
                                 <!-- Boolean Field -->
-                                <select v-if="field.typeName === 'qdb.Bool'" 
+                                <select v-if="field.typeName === 'protobufs.Bool'" 
                                         class="form-select" 
                                         v-model.lazy="field.value" 
                                         @change="onBoolFieldChange(field)">
@@ -62,15 +62,15 @@ function registerEntityViewerComponent(app, context) {
                                 </select>
 
                                 <!-- Number Fields -->
-                                <input v-if="field.typeName === 'qdb.Int' || field.typeName === 'qdb.Float'"
+                                <input v-if="field.typeName === 'protobufs.Int' || field.typeName === 'protobufs.Float'"
                                        type="number" 
                                        class="form-control" 
                                        v-model.lazy="field.value" 
                                        @keyup.enter="onSubmitField($event, field)"
-                                       @change="field.typeName === 'qdb.Int' ? onIntFieldChange(field) : onFloatFieldChange(field)">
+                                       @change="field.typeName === 'protobufs.Int' ? onIntFieldChange(field) : onFloatFieldChange(field)">
 
                                 <!-- String Field -->
-                                <textarea v-if="field.typeName === 'qdb.String'"
+                                <textarea v-if="field.typeName === 'protobufs.String'"
                                           class="form-control" 
                                           v-model.lazy="field.value" 
                                           @keyup.enter="onSubmitField($event, field)"
@@ -79,7 +79,7 @@ function registerEntityViewerComponent(app, context) {
                                           rows="1"></textarea>
 
                                 <!-- Timestamp Field -->
-                                <input v-if="field.typeName === 'qdb.Timestamp'"
+                                <input v-if="field.typeName === 'protobufs.Timestamp'"
                                        type="datetime-local" 
                                        class="form-control" 
                                        v-model.lazy="field.value" 
@@ -87,7 +87,7 @@ function registerEntityViewerComponent(app, context) {
                                        @change="onTimestampFieldChanged(field)">
 
                                 <!-- File Field -->
-                                <div v-if="field.typeName === 'qdb.BinaryFile'" class="file-control">
+                                <div v-if="field.typeName === 'protobufs.BinaryFile'" class="file-control">
                                     <input type="file" :id="'file-' + name" @change="onFileSelected($event, field)">
                                     <label :for="'file-' + name">
                                         <i class="bi bi-cloud-upload me-2"></i>
@@ -101,7 +101,7 @@ function registerEntityViewerComponent(app, context) {
                                 </div>
 
                                 <!-- Entity Reference -->
-                                <input v-if="field.typeName === 'qdb.EntityReference'"
+                                <input v-if="field.typeName === 'protobufs.EntityReference'"
                                        type="text" 
                                        class="form-control" 
                                        v-model.lazy="field.value" 
@@ -120,7 +120,7 @@ function registerEntityViewerComponent(app, context) {
                         </transition>
 
                         <!-- Transformation fields (no transition) -->
-                        <textarea v-if="field.typeName === 'qdb.Transformation'"
+                        <textarea v-if="field.typeName === 'protobufs.Transformation'"
                                   class="form-control" 
                                   v-model="field.value" 
                                   @blur="onTransformationChanged(field)"
@@ -139,30 +139,29 @@ function registerEntityViewerComponent(app, context) {
         inject: ['treeStore'],  // Inject the tree store
 
         data() {
-            context.qDatabaseInteractor
+            qEntityStore
                 .getEventManager()
-                .addEventListener(DATABASE_EVENTS.CONNECTED, this.onDatabaseConnected.bind(this))
-                .addEventListener(DATABASE_EVENTS.DISCONNECTED, this.onDatabaseDisconnected.bind(this));
+                .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
+                .addEventListener(Q_STORE_EVENTS.DISCONNECTED, this.onStoreDisconnected.bind(this));
 
             return {
-                database: context.qDatabaseInteractor,
-                isDatabaseConnected: false
+                
             }
         },
 
         mounted() {
-            if (this.database.isConnected()) {
-                this.onDatabaseConnected();
+            if (qEntityStore.isConnected()) {
+                this.onStoreConnected();
             }
         },
 
         methods: {
-            onDatabaseConnected() {
-                this.isDatabaseConnected = true;
+            onStoreConnected() {
+                
             },
 
-            onDatabaseDisconnected() {
-                this.isDatabaseConnected = false;
+            onStoreDisconnected() {
+                
             },
 
             isEnum(typeClass) {
@@ -186,12 +185,12 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onBoolFieldChange(field) {
-                const value = new proto.qdb.Bool();
+                const value = new proto.protobufs.Bool();
                 value.setRaw(field.value === "true");
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -206,12 +205,12 @@ function registerEntityViewerComponent(app, context) {
                     return;
                 }
 
-                const value = new proto.qdb.Int();
+                const value = new proto.protobufs.Int();
                 value.setRaw(parsedValue);
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -226,12 +225,12 @@ function registerEntityViewerComponent(app, context) {
                     return;
                 }
 
-                const value = new proto.qdb.Float();
+                const value = new proto.protobufs.Float();
                 value.setRaw(parsedValue);
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -241,12 +240,12 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onStringFieldChange(field) {
-                const value = new proto.qdb.String();
+                const value = new proto.protobufs.String();
                 value.setRaw(field.value);
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -256,12 +255,12 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onTimestampFieldChanged(field) {
-                const value = new proto.qdb.Timestamp();
+                const value = new proto.protobufs.Timestamp();
                 value.setRaw( new proto.google.protobuf.Timestamp.fromDate(new Date(field.value)) );
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -271,12 +270,12 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onEntityReferenceChanged(field) {
-                const value = new proto.qdb.EntityReference();
+                const value = new proto.protobufs.EntityReference();
                 value.setRaw(field.value);
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -286,12 +285,12 @@ function registerEntityViewerComponent(app, context) {
             },
 
             onTransformationChanged(field) {
-                const value = new proto.qdb.Transformation();
+                const value = new proto.protobufs.Transformation();
                 value.setRaw(field.value);
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -306,7 +305,7 @@ function registerEntityViewerComponent(app, context) {
                 const valueAsAny = new proto.google.protobuf.Any();
                 valueAsAny.pack(value.serializeBinary(), qMessageType(value));
 
-                this.database.write([
+                qEntityStore.write([
                     {
                         id: this.treeStore.selectedNode.entityId,
                         field: field.name,
@@ -335,7 +334,7 @@ function registerEntityViewerComponent(app, context) {
                 const reader = new FileReader();
                 reader.onload = async function(e) {
                     field.value = await bufferToBase64(new Uint8Array(e.target.result));
-                    const value = new proto.qdb.BinaryFile();
+                    const value = new proto.protobufs.BinaryFile();
                     value.setRaw(field.value);
                     const valueAsAny = new proto.google.protobuf.Any();
                     valueAsAny.pack(value.serializeBinary(), qMessageType(value));
@@ -353,14 +352,14 @@ function registerEntityViewerComponent(app, context) {
 
             getFieldIcon(field) {
                 const iconMap = {
-                    'qdb.Bool': 'bi-toggle2-on',
-                    'qdb.Int': 'bi-123',
-                    'qdb.Float': 'bi-graph-up',
-                    'qdb.String': 'bi-text-paragraph',
-                    'qdb.Timestamp': 'bi-calendar-event',
-                    'qdb.BinaryFile': 'bi-file-earmark-binary',
-                    'qdb.EntityReference': 'bi-link-45deg',
-                    'qdb.Transformation': 'bi-code-square'
+                    'protobufs.Bool': 'bi-toggle2-on',
+                    'protobufs.Int': 'bi-123',
+                    'protobufs.Float': 'bi-graph-up',
+                    'protobufs.String': 'bi-text-paragraph',
+                    'protobufs.Timestamp': 'bi-calendar-event',
+                    'protobufs.BinaryFile': 'bi-file-earmark-binary',
+                    'protobufs.EntityReference': 'bi-link-45deg',
+                    'protobufs.Transformation': 'bi-code-square'
                 };
                 return `bi ${iconMap[field.typeName] || 'bi-dot'}`;
             },

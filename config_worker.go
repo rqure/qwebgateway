@@ -3,11 +3,9 @@ package main
 import (
 	"unicode"
 
-	qdb "github.com/rqure/qdb/src"
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
-	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/query"
 	"github.com/rqure/qlib/pkg/data/snapshot"
 	"github.com/rqure/qlib/pkg/log"
@@ -66,8 +64,6 @@ func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
 		w.onConfigCreateSnapshotRequest(client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigRestoreSnapshotRequest{}) {
 		w.onConfigRestoreSnapshotRequest(client, msg)
-	} else if msg.Payload.MessageIs(&qdb.WebConfigRestoreSnapshotRequest{}) {
-		w.onConfigRestoreSnapshotRequestOld(client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetRootRequest{}) {
 		w.onConfigGetRootRequest(client, msg)
 	}
@@ -384,102 +380,6 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
 		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
-		return
-	}
-
-	client.Write(msg)
-	w.TriggerSchemaUpdate()
-}
-
-func (w *ConfigWorker) onConfigRestoreSnapshotRequestOld(client web.Client, msg web.Message) {
-	req := new(qdb.WebConfigRestoreSnapshotRequest)
-	rsp := new(qdb.WebConfigRestoreSnapshotResponse)
-
-	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequestOld] Could not unmarshal request: %v", err)
-		return
-	}
-
-	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequestOld] Could not handle request %v. Database is not connected.", req)
-		rsp.Status = qdb.WebConfigRestoreSnapshotResponse_FAILURE
-		msg.Header.Timestamp = timestamppb.Now()
-		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigRestoreSnapshotRequestOld] Could not marshal response: %v", err)
-			return
-		}
-
-		client.Write(msg)
-		return
-	}
-
-	log.Info("[ConfigWorker::onConfigRestoreSnapshotRequestOld] Restored snapshot: %v", req)
-
-	db := qdb.NewRedisDatabase(qdb.RedisDatabaseConfig{
-		Address: getDatabaseAddress(),
-	})
-
-	db.Connect()
-	defer db.Disconnect()
-
-	newSs := snapshot.New()
-	for _, esc := range req.Snapshot.EntitySchemas {
-		fscs := []*protobufs.DatabaseFieldSchema{}
-
-		for _, f := range esc.Fields {
-			fsc := db.GetFieldSchema(f)
-			if fsc == nil {
-				log.Warn("[ConfigWorker::onConfigRestoreSnapshotRequestOld] Failed find field schema: %v", f)
-				continue
-			}
-
-			fscs = append(fscs, &protobufs.DatabaseFieldSchema{
-				Name: fsc.Name,
-				Type: fsc.Type,
-			})
-		}
-
-		newSs.AppendSchema(entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{
-			Name:   esc.Name,
-			Fields: fscs,
-		}))
-	}
-
-	for _, ent := range req.Snapshot.Entities {
-		cs := []*protobufs.EntityReference{}
-		for _, c := range ent.Children {
-			cs = append(cs, &protobufs.EntityReference{
-				Raw: c.Raw,
-			})
-		}
-
-		newSs.AppendEntity(entity.FromEntityPb(&protobufs.DatabaseEntity{
-			Id:   ent.Id,
-			Type: ent.Type,
-			Name: ent.Name,
-			Parent: &protobufs.EntityReference{
-				Raw: ent.Parent.Raw,
-			},
-			Children: cs,
-		}))
-	}
-
-	for _, f := range req.Snapshot.Fields {
-		newSs.AppendField(field.FromFieldPb(&protobufs.DatabaseField{
-			Id:        f.Id,
-			Name:      f.Name,
-			Value:     f.Value,
-			WriteTime: f.WriteTime,
-			WriterId:  f.WriterId,
-		}))
-	}
-
-	w.store.RestoreSnapshot(newSs)
-
-	rsp.Status = qdb.WebConfigRestoreSnapshotResponse_SUCCESS
-	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequestOld] Could not marshal response: %v", err)
 		return
 	}
 

@@ -9,7 +9,7 @@ import (
 )
 
 func getDatabaseAddress() string {
-	addr := os.Getenv("QDB_ADDR")
+	addr := os.Getenv("Q_ADDR")
 	if addr == "" {
 		addr = "redis:6379"
 	}
@@ -18,7 +18,7 @@ func getDatabaseAddress() string {
 }
 
 func getWebServiceAddress() string {
-	addr := os.Getenv("QDB_WEBSERVICE_ADDR")
+	addr := os.Getenv("Q_WEB_ADDR")
 	if addr == "" {
 		addr = "0.0.0.0:20000"
 	}
@@ -56,7 +56,7 @@ func main() {
 	restApiWorker.ClientConnected.Connect(runtimeWorker.OnClientConnected)
 	restApiWorker.ClientDisconnected.Connect(runtimeWorker.OnClientDisconnected)
 
-	a := app.NewApplication("qdatastore")
+	a := app.NewApplication("webgateway")
 	a.AddWorker(storeWorker)
 	a.AddWorker(leadershipWorker)
 	a.AddWorker(restApiWorker)
