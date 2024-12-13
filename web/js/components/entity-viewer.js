@@ -51,7 +51,7 @@ function registerEntityViewerComponent(app, context) {
                 <div class="col-md-9">
                     <div class="field-value">
                         <transition name="field-update" v-if="field.typeName !== 'protobufs.Transformation'">
-                            <div :key="field.value">
+                            <div :key="field.updateKey">
                                 <!-- Boolean Field -->
                                 <select v-if="field.typeName === 'protobufs.Bool'" 
                                         class="form-select" 
@@ -72,9 +72,8 @@ function registerEntityViewerComponent(app, context) {
                                 <!-- String Field -->
                                 <textarea v-if="field.typeName === 'protobufs.String'"
                                           class="form-control" 
-                                          v-model.lazy="field.value" 
-                                          @keyup.enter="onSubmitField($event, field)"
-                                          @change="onStringFieldChange(field)"
+                                          v-model="field.value" 
+                                          @blur="onStringFieldChange(field)"
                                           v-auto-resize
                                           rows="1"></textarea>
 
@@ -124,7 +123,6 @@ function registerEntityViewerComponent(app, context) {
                                   class="form-control" 
                                   v-model="field.value" 
                                   @blur="onTransformationChanged(field)"
-                                  @keyup.enter="$event.target.blur()"
                                   v-auto-resize
                                   rows="1"></textarea>
 

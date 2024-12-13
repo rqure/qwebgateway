@@ -201,6 +201,9 @@ function registerTreeNodeComponent(app, context) {
                 const fieldName = field.getName();
                 const fieldValue = field.getValue();
                 const protoClass = fieldValue.getTypeName().split('.').reduce((o,i)=> o[i], proto);
+                const writeTime = field.getWritetime().toDate().toLocaleString('sv-SE', {
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                }) + "." + field.getWritetime().toDate().getMilliseconds().toString().padStart(3, '0');
 
                 if (!this.treeStore.selectedNode.entityFields[fieldName]) {
                     this.treeStore.selectedNode.entityFields[fieldName] = {};
@@ -210,6 +213,8 @@ function registerTreeNodeComponent(app, context) {
                 model.name = fieldName;
                 model.typeClass = protoClass;
                 model.typeName = fieldValue.getTypeName();
+                // Add unique key that changes with either value or writeTime
+                model.updateKey = JSON.stringify({v: fieldValue.getValue_asU8(), t: writeTime});
                 
                 if (model.typeName !== 'protobufs.Transformation') {
                     model.value = protoClass.deserializeBinary(fieldValue.getValue_asU8()).getRaw();
@@ -241,15 +246,18 @@ function registerTreeNodeComponent(app, context) {
                     const fieldName = result.getField();
                     const fieldValue = result.getValue();
                     const protoClass = fieldValue.getTypeName().split('.').reduce((o,i)=> o[i], proto);
+                    const writeTime = result.getWritetime().getRaw().toDate().toLocaleString('sv-SE', {
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    }) + "." + result.getWritetime().getRaw().toDate().getMilliseconds().toString().padStart(3, '0');
 
                     this.treeStore.selectedNode.entityFields[fieldName] = {
                         name: fieldName,
                         typeClass: protoClass,
                         typeName: fieldValue.getTypeName(),
                         value: protoClass.deserializeBinary(fieldValue.getValue_asU8()).getRaw(),
-                        writeTime: result.getWritetime().getRaw().toDate().toLocaleString('sv-SE', {
-                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                        }) + "." + result.getWritetime().getRaw().toDate().getMilliseconds().toString().padStart(3, '0')
+                        writeTime: writeTime,
+                        // Add unique key that changes with either value or writeTime
+                        updateKey: JSON.stringify({v: fieldValue.getValue_asU8(), t: writeTime})
                     };
 
                     // Handle special field types
