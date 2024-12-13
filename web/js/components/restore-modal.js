@@ -84,7 +84,7 @@ function registerRestoreModalComponent(app, context) {
 
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    me.snapshot = proto.qdb.DatabaseSnapshot.deserializeBinary(new Uint8Array(e.target.result));
+                    me.snapshot = proto.protobufs.DatabaseSnapshot.deserializeBinary(new Uint8Array(e.target.result));
                 };
                 reader.readAsArrayBuffer(file);
             },

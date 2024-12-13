@@ -81,8 +81,9 @@ function registerCreateTypeModalComponent(app, context) {
                          :class="{ 'dragging': draggedIndex === index }">
                         <div class="field-item-content">
                             <i class="bi bi-grip-vertical text-secondary drag-handle me-1"></i>
-                            <i class="bi bi-input-cursor text-primary"></i>
-                            <span class="flex-grow-1">{{field}}</span>
+                            <i :class="getFieldIcon(field)" class="field-type-icon text-primary me-1"></i>
+                            <span class="flex-grow-1">{{field.getName()}}</span>
+                            <small class="text-muted me-2">{{getTypeName(field.getType())}}</small>
                             <button class="btn btn-link btn-sm text-danger p-0" 
                                     @click="onDeleteField(field)">
                                 <i class="bi bi-trash3"></i>
@@ -114,6 +115,17 @@ function registerCreateTypeModalComponent(app, context) {
 </div>`,
 
         data() {
+            const iconMap = {
+                'protobufs.Bool': 'bi-toggle2-on',
+                'protobufs.Int': 'bi-123',
+                'protobufs.Float': 'bi-graph-up',
+                'protobufs.String': 'bi-text-paragraph',
+                'protobufs.Timestamp': 'bi-calendar-event',
+                'protobufs.BinaryFile': 'bi-file-earmark-binary',
+                'protobufs.EntityReference': 'bi-link-45deg',
+                'protobufs.Transformation': 'bi-code-square'
+            };
+
             qEntityStore
                 .getEventManager()
                 .addEventListener(Q_STORE_EVENTS.CONNECTED, this.onStoreConnected.bind(this))
@@ -123,7 +135,10 @@ function registerCreateTypeModalComponent(app, context) {
                 entityType: "",
                 entityFields: [],
                 allEntityTypes: [],
-                fieldTypes: qEntityStore.getAvailableFieldTypes(),
+                iconMap, // Add iconMap to data
+                fieldTypes: qEntityStore.getAvailableFieldTypes().filter(type => 
+                    iconMap['protobufs.' + type]
+                ),
                 draggedIndex: null,
                 dropTargetIndex: null,
                 showFieldForm: false,
@@ -273,6 +288,14 @@ function registerCreateTypeModalComponent(app, context) {
                 this.newFieldName = "";
                 this.selectedFieldType = "";
                 this.showFieldForm = false;
+            },
+
+            getFieldIcon(field) {
+                return `bi ${this.iconMap[field.getType()] || 'bi-dot'}`;
+            },
+
+            getTypeName(type) {
+                return type.replace('protobufs.', '');
             }
         },
         computed: {
