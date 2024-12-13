@@ -26,17 +26,47 @@ function registerCreateTypeModalComponent(app, context) {
                     <h6 class="mb-0 text-secondary">Fields</h6>
                     <hr class="flex-grow-1 my-0">
                     <button class="btn btn-primary btn-sm" 
-                            type="button" 
-                            data-bs-toggle="dropdown">
+                            type="button"
+                            @click="showFieldForm = true">
                         <i class="bi bi-plus-lg me-1"></i>Add Field
                     </button>
-                    <ul class="dropdown-menu scrollable-dropdown-menu w-100">
-                        <li v-for="availableField in availableFields" 
-                            class="dropdown-item" 
-                            @click="onSelectField(availableField)">
-                            <i class="bi bi-input-cursor me-2"></i>{{availableField}}
-                        </li>
-                    </ul>
+                </div>
+
+                <!-- New Field Form -->
+                <div v-if="showFieldForm" class="mb-3 p-3 border rounded">
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" 
+                               id="fieldNameInput" placeholder="fieldName"
+                               v-model="newFieldName">
+                        <label for="fieldNameInput">Field Name</label>
+                    </div>
+                    
+                    <div class="dropdown w-100 mb-3">
+                        <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between" 
+                                type="button" 
+                                data-bs-toggle="dropdown">
+                            <span>{{selectedFieldType || 'Select field type...'}}</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <ul class="dropdown-menu w-100">
+                            <li v-for="type in fieldTypes" 
+                                class="dropdown-item" 
+                                @click="selectedFieldType = type">
+                                {{type}}
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-outline-secondary btn-sm" @click="cancelFieldAdd">
+                            Cancel
+                        </button>
+                        <button class="btn btn-primary btn-sm" 
+                                @click="addField" 
+                                :disabled="!canAddField">
+                            Add Field
+                        </button>
+                    </div>
                 </div>
 
                 <div class="field-list">
@@ -93,10 +123,12 @@ function registerCreateTypeModalComponent(app, context) {
                 entityType: "",
                 entityFields: [],
                 allEntityTypes: [],
-                allFields: [],
-                
+                fieldTypes: qEntityStore.getAvailableFieldTypes(),
                 draggedIndex: null,
-                dropTargetIndex: null
+                dropTargetIndex: null,
+                showFieldForm: false,
+                newFieldName: "",
+                selectedFieldType: ""
             }
         },
 
@@ -129,16 +161,37 @@ function registerCreateTypeModalComponent(app, context) {
                 this.entityFields = [];
                 
                 if (event.schema.getName() === this.entityType) {
-                    this.entityFields = event.schema.getFieldsList();
+                    const fields = event.schema.getFieldsList();
+                    this.entityFields = fields.map(field => {
+                        const schema = new proto.protobufs.DatabaseFieldSchema();
+                        schema.setName(field.getName());
+                        schema.setType(field.getType());
+                        return schema;
+                    });
                 }
             },
 
-            onSelectField(field) {
-                this.entityFields.push(field);
+            onSelectField(fieldType) {
+                // Generate a unique field name
+                const baseName = fieldType.toLowerCase();
+                let fieldName = baseName;
+                let counter = 1;
+                
+                while (this.entityFields.some(f => f.getName() === fieldName)) {
+                    fieldName = `${baseName}${counter}`;
+                    counter++;
+                }
+                
+                // Create field schema
+                const fieldSchema = new proto.protobufs.DatabaseFieldSchema();
+                fieldSchema.setName(fieldName);
+                fieldSchema.setType('protobufs.' + fieldType);
+
+                this.entityFields.push(fieldSchema);
             },
 
             onDeleteField(field) {
-                this.entityFields = this.entityFields.filter(f => f !== field);
+                this.entityFields = this.entityFields.filter(f => f.getName() !== field.getName());
             },
 
             onEntityTypeChange() {
@@ -159,12 +212,8 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             onCreateButtonPressed() {
-                const request = new proto.protobufs.WebConfigSetEntitySchemaRequest();
-                request.setName(this.entityType);
-                request.setFieldsList(this.entityFields);
-
                 qEntityStore
-                    .createOrUpdateEntityType(this.entityType, this.entityFields.slice())
+                    .createOrUpdateEntityType(this.entityType, this.entityFields)
                     .catch(error => qError(`[CreateTypeModal::onCreateButtonPressed] Failed to create entity type: ${error}`));
                 
                 this.entityType = "";
@@ -206,6 +255,24 @@ function registerCreateTypeModalComponent(app, context) {
                 }
                 
                 this.draggedIndex = null;
+            },
+
+            addField() {
+                const fieldSchema = new proto.protobufs.DatabaseFieldSchema();
+                fieldSchema.setName(this.newFieldName);
+                fieldSchema.setType('protobufs.' + this.selectedFieldType);
+                this.entityFields.push(fieldSchema);
+                
+                // Reset form
+                this.newFieldName = "";
+                this.selectedFieldType = "";
+                this.showFieldForm = false;
+            },
+
+            cancelFieldAdd() {
+                this.newFieldName = "";
+                this.selectedFieldType = "";
+                this.showFieldForm = false;
             }
         },
         computed: {
@@ -214,7 +281,15 @@ function registerCreateTypeModalComponent(app, context) {
             },
 
             availableFields() {
-                return this.allFields.filter(field => !this.entityFields.includes(field));
+                return this.fieldTypes.filter(type => 
+                    !this.entityFields.find(field => field.getType() === 'protobufs.' + type)
+                );
+            },
+
+            canAddField() {
+                return this.newFieldName && 
+                       this.selectedFieldType && 
+                       !this.entityFields.find(f => f.getName() === this.newFieldName);
             }
         }
     })

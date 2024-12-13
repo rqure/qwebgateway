@@ -43,10 +43,6 @@ function registerTreeContextMenuComponent(app, context) {
                                 v-tooltip="'Ctrl+T'">
                             <i class="bi bi-gear"></i> Create Type
                         </button>
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-2" 
-                                @click="handleAction('create-field')">
-                            <i class="bi bi-plus-square"></i> Create Field
-                        </button>
                     </div>
 
                     <!-- Database Actions -->
@@ -148,9 +144,6 @@ function registerTreeContextMenuComponent(app, context) {
                         break;
                     case 'create-type':
                         new bootstrap.Modal(document.getElementById('create-type-modal')).show();
-                        break;
-                    case 'create-field':
-                        new bootstrap.Modal(document.getElementById('create-field-modal')).show();
                         break;
                     case 'backup':
                         new bootstrap.Modal(document.getElementById('backup-modal')).show();
