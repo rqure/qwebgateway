@@ -81,22 +81,22 @@ func (w *RestApiWorker) Init(app.Handle) {
 		clientTimeout := DefaultClientTimeout
 		clientTimeoutStr := r.URL.Query().Get("clientTimeout")
 		if clientTimeoutStr != "" {
-			log.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", clientTimeoutStr)
+			log.Trace("Received query parameter: %v", clientTimeoutStr)
 			if timeout, err := time.ParseDuration(clientTimeoutStr); err == nil {
 				clientTimeout = timeout
 			} else {
-				log.Error("[RestApiWorker::Init::/make-client-id] Invalid clientTimeout: %v", err)
+				log.Error("Invalid clientTimeout: %v", err)
 			}
 		}
 
 		requestTimeout := DefaultRequestTimeout
 		requestTimeoutStr := r.URL.Query().Get("requestTimeout")
 		if requestTimeoutStr != "" {
-			log.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
+			log.Trace("Received query parameter: %v", requestTimeoutStr)
 			if timeout, err := time.ParseDuration(requestTimeoutStr); err == nil {
 				requestTimeout = timeout
 			} else {
-				log.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
+				log.Error("Invalid requestTimeout: %v", err)
 			}
 		}
 
@@ -130,7 +130,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 			}
 			s, err := marshaller.Marshal(response)
 			if err != nil {
-				log.Error("[RestApiWorker::Init::/make-client-id] Failed to marshal response: %v", err)
+				log.Error("Failed to marshal response: %v", err)
 				http.Error(wr, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -140,7 +140,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 				<-timeout.C
 			}
 		case <-timeout.C:
-			log.Error("[RestApiWorker::Init::/make-client-id] Timeout waiting for response")
+			log.Error("Timeout waiting for response")
 			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
 			return
 		}
@@ -154,21 +154,21 @@ func (w *RestApiWorker) Init(app.Handle) {
 
 		// Parse request and assume it is a WebMessage in JSON form
 		if r.Body == nil {
-			log.Error("[RestApiWorker::Init::/api] Request body is nil")
+			log.Error("Request body is nil")
 			http.Error(wr, "Request body is nil", http.StatusBadRequest)
 			return
 		}
 
 		rBody, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/api] Failed to read request body: %v", err)
+			log.Error("Failed to read request body: %v", err)
 			http.Error(wr, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		err = jsonpb.Unmarshal(rBody, client.Request)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/api] Failed to parse request: %v", err)
+			log.Error("Failed to parse request: %v", err)
 			http.Error(wr, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -176,11 +176,11 @@ func (w *RestApiWorker) Init(app.Handle) {
 		requestTimeout := DefaultRequestTimeout
 		requestTimeoutStr := r.URL.Query().Get("requestTimeout")
 		if requestTimeoutStr != "" {
-			log.Trace("[RestApiWorker::Init::/make-client-id] Received query parameter: %v", requestTimeoutStr)
+			log.Trace("Received query parameter: %v", requestTimeoutStr)
 			if timeout, err := time.ParseDuration(requestTimeoutStr); err == nil {
 				requestTimeout = timeout
 			} else {
-				log.Error("[RestApiWorker::Init::/make-client-id] Invalid requestTimeout: %v", err)
+				log.Error("Invalid requestTimeout: %v", err)
 			}
 		}
 
@@ -196,7 +196,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 			}
 			s, err := marshaller.Marshal(response)
 			if err != nil {
-				log.Error("[RestApiWorker::Init::/api] Failed to marshal response: %v", err)
+				log.Error("Failed to marshal response: %v", err)
 				http.Error(wr, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -206,7 +206,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 				<-timeout.C
 			}
 		case <-timeout.C:
-			log.Error("[RestApiWorker::Init::/api] Timeout waiting for response")
+			log.Error("Timeout waiting for response")
 			http.Error(wr, "Timeout waiting for response", http.StatusInternalServerError)
 			return
 		}
@@ -216,7 +216,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigCreateEntityRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -235,7 +235,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateEntityRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -247,7 +247,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigDeleteEntityRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -266,7 +266,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigDeleteEntityRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -278,7 +278,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigSetEntitySchemaRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -297,7 +297,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigSetEntitySchemaRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -309,7 +309,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigCreateSnapshotRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -328,7 +328,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigCreateSnapshotRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -340,7 +340,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigRestoreSnapshotRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -359,7 +359,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigRestoreSnapshotRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -371,7 +371,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigGetEntityTypesRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -390,7 +390,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityTypesRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -402,7 +402,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigGetEntitySchemaRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -421,7 +421,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntitySchemaRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -433,7 +433,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigGetEntityRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -452,7 +452,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetEntityRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -464,7 +464,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigGetFieldSchemaRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -483,7 +483,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetFieldSchemaRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -495,7 +495,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebConfigGetRootRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -514,7 +514,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebConfigGetRootRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -526,7 +526,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebRuntimeDatabaseRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -545,7 +545,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeDatabaseRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -557,7 +557,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebRuntimeRegisterNotificationRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -576,7 +576,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeRegisterNotificationRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -588,7 +588,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebRuntimeGetNotificationsRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -607,7 +607,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetNotificationsRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -619,7 +619,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebRuntimeUnregisterNotificationRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -638,7 +638,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeUnregisterNotificationRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -650,7 +650,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		payload, err := anypb.New(&protobufs.WebRuntimeGetDatabaseConnectionStatusRequest{})
 
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to create payload: %v", err)
+			log.Error("Failed to create payload: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -669,7 +669,7 @@ func (w *RestApiWorker) Init(app.Handle) {
 		}
 		s, err := marshaller.Marshal(response)
 		if err != nil {
-			log.Error("[RestApiWorker::Init::/examples/WebRuntimeGetDatabaseConnectionStatusRequest] Failed to marshal response: %v", err)
+			log.Error("Failed to marshal response: %v", err)
 			http.Error(wr, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -724,7 +724,7 @@ func (w *RestApiWorker) DoWork() {
 }
 
 func (w *RestApiWorker) onRequest(client *RestApiWebClient) {
-	log.Trace("[RestApiWorker::onRequest] Received request from client: %v", client.Request)
+	log.Trace("Received request from client: %v", client.Request)
 
 	w.Received.Emit(client, client.Request)
 }

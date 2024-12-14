@@ -74,16 +74,16 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client web.Client, msg web.Me
 	rsp := new(protobufs.WebConfigCreateEntityResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigCreateEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -91,13 +91,13 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client web.Client, msg web.Me
 		return
 	}
 
-	log.Info("[ConfigWorker::onConfigCreateEntityRequest] Created entity: %v", req)
+	log.Info("Created entity: %v", req)
 	w.store.CreateEntity(req.Type, req.ParentId, req.Name)
 
 	rsp.Status = protobufs.WebConfigCreateEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigCreateEntityRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -110,16 +110,16 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client web.Client, msg web.Me
 	rsp := new(protobufs.WebConfigDeleteEntityResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigDeleteEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -127,13 +127,13 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client web.Client, msg web.Me
 		return
 	}
 
-	log.Info("[ConfigWorker::onConfigDeleteEntityRequest] Deleted entity: %v", req)
+	log.Info("Deleted entity: %v", req)
 	w.store.DeleteEntity(req.Id)
 
 	rsp.Status = protobufs.WebConfigDeleteEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigDeleteEntityRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -146,16 +146,16 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Messa
 	rsp := new(protobufs.WebConfigGetEntityResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigGetEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -165,11 +165,11 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Messa
 
 	ent := w.store.GetEntity(req.Id)
 	if ent == nil {
-		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not get entity")
+		log.Error("Could not get entity")
 		rsp.Status = protobufs.WebConfigGetEntityResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -181,7 +181,7 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Messa
 	rsp.Status = protobufs.WebConfigGetEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigGetEntityRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -193,7 +193,7 @@ func (w *ConfigWorker) onConfigGetEntityTypesRequest(client web.Client, msg web.
 	response := new(protobufs.WebConfigGetEntityTypesResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		log.Error("[ConfigWorker::onConfigGetEntityTypesRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
@@ -202,7 +202,7 @@ func (w *ConfigWorker) onConfigGetEntityTypesRequest(client web.Client, msg web.
 	response.Types = types
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		log.Error("[ConfigWorker::onConfigGetEntityTypesRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -214,16 +214,16 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web
 	rsp := new(protobufs.WebConfigGetEntitySchemaResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -233,11 +233,11 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web
 
 	sch := w.store.GetEntitySchema(req.Type)
 	if sch == nil {
-		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not get entity schema")
+		log.Error("Could not get entity schema")
 		rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -249,7 +249,7 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web
 	rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigGetEntitySchemaRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -261,16 +261,16 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web
 	rsp := new(protobufs.WebConfigSetEntitySchemaResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -289,11 +289,11 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web
 	}
 
 	if !isAlphanumeric(req.Schema.Name) {
-		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not handle request %v. Entity type is not alphanumeric.", req)
+		log.Error("Could not handle request %v. Entity type is not alphanumeric.", req)
 		rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -301,14 +301,14 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web
 		return
 	}
 
-	log.Info("[ConfigWorker::onConfigSetEntitySchemaRequest] Set entity schema: %v", req)
+	log.Info("Set entity schema: %v", req)
 	sch := entity.FromSchemaPb(req.Schema)
 	w.store.SetEntitySchema(sch)
 
 	rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigSetEntitySchemaRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 	client.Write(msg)
@@ -320,16 +320,16 @@ func (w *ConfigWorker) onConfigCreateSnapshotRequest(client web.Client, msg web.
 	rsp := new(protobufs.WebConfigCreateSnapshotResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigCreateSnapshotResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -337,14 +337,14 @@ func (w *ConfigWorker) onConfigCreateSnapshotRequest(client web.Client, msg web.
 		return
 	}
 
-	log.Info("[ConfigWorker::onConfigCreateSnapshotRequest] Created snapshot: %v", req)
+	log.Info("Created snapshot: %v", req)
 	ss := w.store.CreateSnapshot()
 
 	rsp.Snapshot = snapshot.ToPb(ss)
 	rsp.Status = protobufs.WebConfigCreateSnapshotResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigCreateSnapshotRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -356,16 +356,16 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web
 	rsp := new(protobufs.WebConfigRestoreSnapshotResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
-		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not handle request %v. Database is not connected.", req)
+		log.Error("Could not handle request %v. Database is not connected.", req)
 		rsp.Status = protobufs.WebConfigRestoreSnapshotResponse_FAILURE
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(rsp); err != nil {
-			log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -373,13 +373,13 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web
 		return
 	}
 
-	log.Info("[ConfigWorker::onConfigRestoreSnapshotRequest] Restored snapshot: %v", req)
+	log.Info("Restored snapshot: %v", req)
 	w.store.RestoreSnapshot(snapshot.FromPb(req.Snapshot))
 
 	rsp.Status = protobufs.WebConfigRestoreSnapshotResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
-		log.Error("[ConfigWorker::onConfigRestoreSnapshotRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
@@ -392,15 +392,15 @@ func (w *ConfigWorker) onConfigGetRootRequest(client web.Client, msg web.Message
 	response := new(protobufs.WebConfigGetRootResponse)
 
 	if err := msg.Payload.UnmarshalTo(request); err != nil {
-		log.Error("[ConfigWorker::onConfigGetRootRequest] Could not unmarshal request: %v", err)
+		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
 	if !w.isStoreConnected {
-		log.Error("[ConfigWorker::onConfigGetRootRequest] Could not handle request %v. Database is not connected.", request)
+		log.Error("Could not handle request %v. Database is not connected.", request)
 		msg.Header.Timestamp = timestamppb.Now()
 		if err := msg.Payload.MarshalFrom(response); err != nil {
-			log.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
+			log.Error("Could not marshal response: %v", err)
 			return
 		}
 
@@ -415,7 +415,7 @@ func (w *ConfigWorker) onConfigGetRootRequest(client web.Client, msg web.Message
 	}
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(response); err != nil {
-		log.Error("[ConfigWorker::onConfigGetRootRequest] Could not marshal response: %v", err)
+		log.Error("Could not marshal response: %v", err)
 		return
 	}
 
