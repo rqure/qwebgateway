@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"unicode"
 
 	"github.com/rqure/qlib/pkg/app"
@@ -26,50 +27,50 @@ func NewConfigWorker(store data.Store) *ConfigWorker {
 	}
 }
 
-func (w *ConfigWorker) Init(app.Handle) {
+func (w *ConfigWorker) Init(context.Context, app.Handle) {
 
 }
 
-func (w *ConfigWorker) Deinit() {
+func (w *ConfigWorker) Deinit(context.Context) {
 
 }
 
-func (w *ConfigWorker) DoWork() {
+func (w *ConfigWorker) DoWork(context.Context) {
 
 }
 
-func (w *ConfigWorker) TriggerSchemaUpdate() {
-	for _, root := range query.New(w.store).ForType("Root").Execute() {
-		root.GetField("SchemaUpdateTrigger").WriteInt(0)
+func (w *ConfigWorker) TriggerSchemaUpdate(ctx context.Context) {
+	for _, root := range query.New(w.store).ForType("Root").Execute(ctx) {
+		root.GetField("SchemaUpdateTrigger").WriteInt(ctx, 0)
 	}
 }
 
-func (w *ConfigWorker) OnNewClientMessage(args ...interface{}) {
+func (w *ConfigWorker) OnNewClientMessage(ctx context.Context, args ...interface{}) {
 	client := args[0].(web.Client)
 	msg := args[1].(web.Message)
 
 	if msg.Payload.MessageIs(&protobufs.WebConfigCreateEntityRequest{}) {
-		w.onConfigCreateEntityRequest(client, msg)
+		w.onConfigCreateEntityRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigDeleteEntityRequest{}) {
-		w.onConfigDeleteEntityRequest(client, msg)
+		w.onConfigDeleteEntityRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetEntityRequest{}) {
-		w.onConfigGetEntityRequest(client, msg)
+		w.onConfigGetEntityRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetEntityTypesRequest{}) {
-		w.onConfigGetEntityTypesRequest(client, msg)
+		w.onConfigGetEntityTypesRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetEntitySchemaRequest{}) {
-		w.onConfigGetEntitySchemaRequest(client, msg)
+		w.onConfigGetEntitySchemaRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigSetEntitySchemaRequest{}) {
-		w.onConfigSetEntitySchemaRequest(client, msg)
+		w.onConfigSetEntitySchemaRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigCreateSnapshotRequest{}) {
-		w.onConfigCreateSnapshotRequest(client, msg)
+		w.onConfigCreateSnapshotRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigRestoreSnapshotRequest{}) {
-		w.onConfigRestoreSnapshotRequest(client, msg)
+		w.onConfigRestoreSnapshotRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebConfigGetRootRequest{}) {
-		w.onConfigGetRootRequest(client, msg)
+		w.onConfigGetRootRequest(ctx, client, msg)
 	}
 }
 
-func (w *ConfigWorker) onConfigCreateEntityRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigCreateEntityRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigCreateEntityRequest)
 	rsp := new(protobufs.WebConfigCreateEntityResponse)
 
@@ -92,7 +93,7 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client web.Client, msg web.Me
 	}
 
 	log.Info("Created entity: %v", req)
-	w.store.CreateEntity(req.Type, req.ParentId, req.Name)
+	w.store.CreateEntity(ctx, req.Type, req.ParentId, req.Name)
 
 	rsp.Status = protobufs.WebConfigCreateEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
@@ -102,10 +103,10 @@ func (w *ConfigWorker) onConfigCreateEntityRequest(client web.Client, msg web.Me
 	}
 
 	client.Write(msg)
-	w.TriggerSchemaUpdate()
+	w.TriggerSchemaUpdate(ctx)
 }
 
-func (w *ConfigWorker) onConfigDeleteEntityRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigDeleteEntityRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigDeleteEntityRequest)
 	rsp := new(protobufs.WebConfigDeleteEntityResponse)
 
@@ -128,7 +129,7 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client web.Client, msg web.Me
 	}
 
 	log.Info("Deleted entity: %v", req)
-	w.store.DeleteEntity(req.Id)
+	w.store.DeleteEntity(ctx, req.Id)
 
 	rsp.Status = protobufs.WebConfigDeleteEntityResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
@@ -138,10 +139,10 @@ func (w *ConfigWorker) onConfigDeleteEntityRequest(client web.Client, msg web.Me
 	}
 
 	client.Write(msg)
-	w.TriggerSchemaUpdate()
+	w.TriggerSchemaUpdate(ctx)
 }
 
-func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigGetEntityRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigGetEntityRequest)
 	rsp := new(protobufs.WebConfigGetEntityResponse)
 
@@ -163,7 +164,7 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Messa
 		return
 	}
 
-	ent := w.store.GetEntity(req.Id)
+	ent := w.store.GetEntity(ctx, req.Id)
 	if ent == nil {
 		log.Error("Could not get entity")
 		rsp.Status = protobufs.WebConfigGetEntityResponse_FAILURE
@@ -188,7 +189,7 @@ func (w *ConfigWorker) onConfigGetEntityRequest(client web.Client, msg web.Messa
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigGetEntityTypesRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigGetEntityTypesRequest(ctx context.Context, client web.Client, msg web.Message) {
 	request := new(protobufs.WebConfigGetEntityTypesRequest)
 	response := new(protobufs.WebConfigGetEntityTypesResponse)
 
@@ -197,7 +198,7 @@ func (w *ConfigWorker) onConfigGetEntityTypesRequest(client web.Client, msg web.
 		return
 	}
 
-	types := w.store.GetEntityTypes()
+	types := w.store.GetEntityTypes(ctx)
 
 	response.Types = types
 	msg.Header.Timestamp = timestamppb.Now()
@@ -209,7 +210,7 @@ func (w *ConfigWorker) onConfigGetEntityTypesRequest(client web.Client, msg web.
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigGetEntitySchemaRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigGetEntitySchemaRequest)
 	rsp := new(protobufs.WebConfigGetEntitySchemaResponse)
 
@@ -231,7 +232,7 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web
 		return
 	}
 
-	sch := w.store.GetEntitySchema(req.Type)
+	sch := w.store.GetEntitySchema(ctx, req.Type)
 	if sch == nil {
 		log.Error("Could not get entity schema")
 		rsp.Status = protobufs.WebConfigGetEntitySchemaResponse_FAILURE
@@ -256,7 +257,7 @@ func (w *ConfigWorker) onConfigGetEntitySchemaRequest(client web.Client, msg web
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigSetEntitySchemaRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigSetEntitySchemaRequest)
 	rsp := new(protobufs.WebConfigSetEntitySchemaResponse)
 
@@ -303,7 +304,7 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web
 
 	log.Info("Set entity schema: %v", req)
 	sch := entity.FromSchemaPb(req.Schema)
-	w.store.SetEntitySchema(sch)
+	w.store.SetEntitySchema(ctx, sch)
 
 	rsp.Status = protobufs.WebConfigSetEntitySchemaResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
@@ -312,10 +313,10 @@ func (w *ConfigWorker) onConfigSetEntitySchemaRequest(client web.Client, msg web
 		return
 	}
 	client.Write(msg)
-	w.TriggerSchemaUpdate()
+	w.TriggerSchemaUpdate(ctx)
 }
 
-func (w *ConfigWorker) onConfigCreateSnapshotRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigCreateSnapshotRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigCreateSnapshotRequest)
 	rsp := new(protobufs.WebConfigCreateSnapshotResponse)
 
@@ -338,7 +339,7 @@ func (w *ConfigWorker) onConfigCreateSnapshotRequest(client web.Client, msg web.
 	}
 
 	log.Info("Created snapshot: %v", req)
-	ss := w.store.CreateSnapshot()
+	ss := w.store.CreateSnapshot(ctx)
 
 	rsp.Snapshot = snapshot.ToPb(ss)
 	rsp.Status = protobufs.WebConfigCreateSnapshotResponse_SUCCESS
@@ -351,7 +352,7 @@ func (w *ConfigWorker) onConfigCreateSnapshotRequest(client web.Client, msg web.
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigRestoreSnapshotRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebConfigRestoreSnapshotRequest)
 	rsp := new(protobufs.WebConfigRestoreSnapshotResponse)
 
@@ -374,7 +375,7 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web
 	}
 
 	log.Info("Restored snapshot: %v", req)
-	w.store.RestoreSnapshot(snapshot.FromPb(req.Snapshot))
+	w.store.RestoreSnapshot(ctx, snapshot.FromPb(req.Snapshot))
 
 	rsp.Status = protobufs.WebConfigRestoreSnapshotResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
@@ -384,10 +385,10 @@ func (w *ConfigWorker) onConfigRestoreSnapshotRequest(client web.Client, msg web
 	}
 
 	client.Write(msg)
-	w.TriggerSchemaUpdate()
+	w.TriggerSchemaUpdate(ctx)
 }
 
-func (w *ConfigWorker) onConfigGetRootRequest(client web.Client, msg web.Message) {
+func (w *ConfigWorker) onConfigGetRootRequest(ctx context.Context, client web.Client, msg web.Message) {
 	request := new(protobufs.WebConfigGetRootRequest)
 	response := new(protobufs.WebConfigGetRootResponse)
 
@@ -408,7 +409,7 @@ func (w *ConfigWorker) onConfigGetRootRequest(client web.Client, msg web.Message
 		return
 	}
 
-	root := w.store.FindEntities("Root")
+	root := w.store.FindEntities(ctx, "Root")
 
 	for _, id := range root {
 		response.RootId = id
@@ -422,7 +423,7 @@ func (w *ConfigWorker) onConfigGetRootRequest(client web.Client, msg web.Message
 	client.Write(msg)
 }
 
-func (w *ConfigWorker) OnStoreConnected() {
+func (w *ConfigWorker) OnStoreConnected(context.Context) {
 	w.isStoreConnected = true
 }
 

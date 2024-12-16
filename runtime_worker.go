@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/rqure/qlib/pkg/app"
@@ -32,76 +33,76 @@ func NewRuntimeWorker(store data.Store) *RuntimeWorker {
 	}
 }
 
-func (w *RuntimeWorker) Init(app.Handle) {
+func (w *RuntimeWorker) Init(context.Context, app.Handle) {
 
 }
 
-func (w *RuntimeWorker) Deinit() {
+func (w *RuntimeWorker) Deinit(context.Context) {
 
 }
 
-func (w *RuntimeWorker) DoWork() {
+func (w *RuntimeWorker) DoWork(context.Context) {
 
 }
 
-func (w *RuntimeWorker) OnClientConnected(args ...interface{}) {
+func (w *RuntimeWorker) OnClientConnected(ctx context.Context, args ...interface{}) {
 	client := args[0].(web.Client)
 	w.clientNotificationQueue[client.Id()] = make(map[string][]data.Notification)
 	w.clientNotificationTokens[client.Id()] = make(map[string]data.NotificationToken)
 }
 
-func (w *RuntimeWorker) OnClientDisconnected(args ...interface{}) {
+func (w *RuntimeWorker) OnClientDisconnected(ctx context.Context, args ...interface{}) {
 	clientId := args[0].(string)
 
 	for _, token := range w.clientNotificationTokens[clientId] {
 		log.Info("Unbinding notification token: %v", token)
-		token.Unbind()
+		token.Unbind(ctx)
 	}
 
 	delete(w.clientNotificationQueue, clientId)
 	delete(w.clientNotificationTokens, clientId)
 }
 
-func (w *RuntimeWorker) OnNewClientMessage(args ...interface{}) {
+func (w *RuntimeWorker) OnNewClientMessage(ctx context.Context, args ...interface{}) {
 	client := args[0].(web.Client)
 	msg := args[1].(web.Message)
 
 	if msg.Payload.MessageIs(&protobufs.WebRuntimeDatabaseRequest{}) {
-		w.onRuntimeDatabaseRequest(client, msg)
+		w.onRuntimeDatabaseRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeRegisterNotificationRequest{}) {
-		w.onRuntimeRegisterNotificationRequest(client, msg)
+		w.onRuntimeRegisterNotificationRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeUnregisterNotificationRequest{}) {
-		w.onRuntimeUnregisterNotificationRequest(client, msg)
+		w.onRuntimeUnregisterNotificationRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeGetNotificationsRequest{}) {
-		w.onRuntimeGetNotificationsRequest(client, msg)
+		w.onRuntimeGetNotificationsRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeGetDatabaseConnectionStatusRequest{}) {
-		w.onRuntimeGetDatabaseConnectionStatusRequest(client, msg)
+		w.onRuntimeGetDatabaseConnectionStatusRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeGetEntitiesRequest{}) {
-		w.onRuntimeGetEntitiesRequest(client, msg)
+		w.onRuntimeGetEntitiesRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeFieldExistsRequest{}) {
-		w.onRuntimeFieldExistsRequest(client, msg)
+		w.onRuntimeFieldExistsRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeEntityExistsRequest{}) {
-		w.onRuntimeEntityExistsRequest(client, msg)
+		w.onRuntimeEntityExistsRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeTempSetRequest{}) {
-		w.onRuntimeTempSetRequest(client, msg)
+		w.onRuntimeTempSetRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeTempGetRequest{}) {
-		w.onRuntimeTempGetRequest(client, msg)
+		w.onRuntimeTempGetRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeTempExpireRequest{}) {
-		w.onRuntimeTempExpireRequest(client, msg)
+		w.onRuntimeTempExpireRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeTempDelRequest{}) {
-		w.onRuntimeTempDelRequest(client, msg)
+		w.onRuntimeTempDelRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeSortedSetAddRequest{}) {
-		w.onRuntimeSortedSetAddRequest(client, msg)
+		w.onRuntimeSortedSetAddRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeSortedSetRemoveRequest{}) {
-		w.onRuntimeSortedSetRemoveRequest(client, msg)
+		w.onRuntimeSortedSetRemoveRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeSortedSetRemoveRangeByRankRequest{}) {
-		w.onRuntimeSortedSetRemoveRangeByRankRequest(client, msg)
+		w.onRuntimeSortedSetRemoveRangeByRankRequest(ctx, client, msg)
 	} else if msg.Payload.MessageIs(&protobufs.WebRuntimeSortedSetRangeByScoreWithScoresRequest{}) {
-		w.onRuntimeSortedSetRangeByScoreWithScoresRequest(client, msg)
+		w.onRuntimeSortedSetRangeByScoreWithScoresRequest(ctx, client, msg)
 	}
 }
 
-func (w *RuntimeWorker) OnStoreConnected() {
+func (w *RuntimeWorker) OnStoreConnected(context.Context) {
 	w.isStoreConnected = true
 }
 
@@ -109,7 +110,7 @@ func (w *RuntimeWorker) OnStoreDisconnected() {
 	w.isStoreConnected = false
 }
 
-func (w *RuntimeWorker) onRuntimeDatabaseRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeDatabaseRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeDatabaseRequest)
 	rsp := new(protobufs.WebRuntimeDatabaseResponse)
 
@@ -137,11 +138,11 @@ func (w *RuntimeWorker) onRuntimeDatabaseRequest(client web.Client, msg web.Mess
 
 	if req.RequestType == protobufs.WebRuntimeDatabaseRequest_READ {
 		log.Info("Read request: %v", req.Requests)
-		w.store.Read(reqs...)
+		w.store.Read(ctx, reqs...)
 		rsp.Response = req.Requests
 	} else if req.RequestType == protobufs.WebRuntimeDatabaseRequest_WRITE {
 		log.Info("Write request: %v", req.Requests)
-		w.store.Write(reqs...)
+		w.store.Write(ctx, reqs...)
 		rsp.Response = req.Requests
 	} else {
 		log.Error("Could not handle request %v. Unknown request type.", req)
@@ -156,7 +157,7 @@ func (w *RuntimeWorker) onRuntimeDatabaseRequest(client web.Client, msg web.Mess
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeRegisterNotificationRequest)
 	rsp := new(protobufs.WebRuntimeRegisterNotificationResponse)
 
@@ -165,15 +166,27 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client web.Client, 
 		return
 	}
 
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
 	for _, cfg := range req.Requests {
-		token := w.store.Notify(notification.FromConfigPb(cfg), notification.NewCallback(func(n data.Notification) {
+		token := w.store.Notify(ctx, notification.FromConfigPb(cfg), notification.NewCallback(func(ctx context.Context, n data.Notification) {
 			if w.clientNotificationQueue[client.Id()][n.GetToken()] != nil {
 				w.clientNotificationQueue[client.Id()][n.GetToken()] = append(w.clientNotificationQueue[client.Id()][n.GetToken()], n)
 			}
 		}))
 
 		if w.clientNotificationTokens[client.Id()][token.Id()] != nil {
-			w.clientNotificationTokens[client.Id()][token.Id()].Unbind()
+			w.clientNotificationTokens[client.Id()][token.Id()].Unbind(ctx)
 		}
 		w.clientNotificationTokens[client.Id()][token.Id()] = token
 
@@ -195,18 +208,30 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(client web.Client, 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client web.Client, msg web.Message) {
-	request := new(protobufs.WebRuntimeUnregisterNotificationRequest)
-	response := new(protobufs.WebRuntimeUnregisterNotificationResponse)
+func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(ctx context.Context, client web.Client, msg web.Message) {
+	req := new(protobufs.WebRuntimeUnregisterNotificationRequest)
+	rsp := new(protobufs.WebRuntimeUnregisterNotificationResponse)
 
-	if err := msg.Payload.UnmarshalTo(request); err != nil {
+	if err := msg.Payload.UnmarshalTo(req); err != nil {
 		log.Error("Could not unmarshal request: %v", err)
 		return
 	}
 
-	for _, token := range request.Tokens {
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	for _, token := range req.Tokens {
 		if w.clientNotificationTokens[client.Id()][token] != nil {
-			w.clientNotificationTokens[client.Id()][token].Unbind()
+			w.clientNotificationTokens[client.Id()][token].Unbind(ctx)
 			delete(w.clientNotificationTokens[client.Id()], token)
 		}
 
@@ -217,9 +242,9 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client web.Client
 		log.Info("Unregistered notification: %v for client %s", token, client.Id())
 	}
 
-	response.Status = protobufs.WebRuntimeUnregisterNotificationResponse_SUCCESS
+	rsp.Status = protobufs.WebRuntimeUnregisterNotificationResponse_SUCCESS
 	msg.Header.Timestamp = timestamppb.Now()
-	if err := msg.Payload.MarshalFrom(response); err != nil {
+	if err := msg.Payload.MarshalFrom(rsp); err != nil {
 		log.Error("Could not marshal response: %v", err)
 		return
 	}
@@ -227,12 +252,24 @@ func (w *RuntimeWorker) onRuntimeUnregisterNotificationRequest(client web.Client
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(_ context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeGetNotificationsRequest)
 	rsp := new(protobufs.WebRuntimeGetNotificationsResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
 		log.Error("Could not unmarshal request: %v", err)
+		return
+	}
+
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
 		return
 	}
 
@@ -252,12 +289,24 @@ func (w *RuntimeWorker) onRuntimeGetNotificationsRequest(client web.Client, msg 
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(_ context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeGetDatabaseConnectionStatusRequest)
 	rsp := new(protobufs.WebRuntimeGetDatabaseConnectionStatusResponse)
 
 	if err := msg.Payload.UnmarshalTo(req); err != nil {
 		log.Error("Could not unmarshal request: %v", err)
+		return
+	}
+
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
 		return
 	}
 
@@ -272,7 +321,7 @@ func (w *RuntimeWorker) onRuntimeGetDatabaseConnectionStatusRequest(client web.C
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeGetEntitiesRequest)
 	rsp := new(protobufs.WebRuntimeGetEntitiesResponse)
 
@@ -281,7 +330,19 @@ func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(client web.Client, msg web.M
 		return
 	}
 
-	entities := query.New(w.store).ForType(req.EntityType).Execute()
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	entities := query.New(w.store).ForType(req.EntityType).Execute(ctx)
 
 	for _, ent := range entities {
 		rsp.Entities = append(rsp.Entities, entity.ToEntityPb(ent))
@@ -296,7 +357,7 @@ func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(client web.Client, msg web.M
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeFieldExistsRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeFieldExistsRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeFieldExistsRequest)
 	rsp := new(protobufs.WebRuntimeFieldExistsResponse)
 
@@ -305,7 +366,19 @@ func (w *RuntimeWorker) onRuntimeFieldExistsRequest(client web.Client, msg web.M
 		return
 	}
 
-	rsp.Exists = w.store.FieldExists(req.FieldName, req.EntityType)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Exists = w.store.FieldExists(ctx, req.FieldName, req.EntityType)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -316,7 +389,7 @@ func (w *RuntimeWorker) onRuntimeFieldExistsRequest(client web.Client, msg web.M
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeEntityExistsRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeEntityExistsRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeEntityExistsRequest)
 	rsp := new(protobufs.WebRuntimeEntityExistsResponse)
 
@@ -325,7 +398,19 @@ func (w *RuntimeWorker) onRuntimeEntityExistsRequest(client web.Client, msg web.
 		return
 	}
 
-	rsp.Exists = w.store.EntityExists(req.EntityId)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Exists = w.store.EntityExists(ctx, req.EntityId)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -336,7 +421,7 @@ func (w *RuntimeWorker) onRuntimeEntityExistsRequest(client web.Client, msg web.
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeTempSetRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeTempSetRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeTempSetRequest)
 	rsp := new(protobufs.WebRuntimeTempSetResponse)
 
@@ -345,7 +430,19 @@ func (w *RuntimeWorker) onRuntimeTempSetRequest(client web.Client, msg web.Messa
 		return
 	}
 
-	rsp.Success = w.store.TempSet(req.Key, req.Value, time.Duration(req.ExpirationMs)*time.Millisecond)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Success = w.store.TempSet(ctx, req.Key, req.Value, time.Duration(req.ExpirationMs)*time.Millisecond)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -356,7 +453,7 @@ func (w *RuntimeWorker) onRuntimeTempSetRequest(client web.Client, msg web.Messa
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeTempGetRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeTempGetRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeTempGetRequest)
 	rsp := new(protobufs.WebRuntimeTempGetResponse)
 
@@ -365,7 +462,19 @@ func (w *RuntimeWorker) onRuntimeTempGetRequest(client web.Client, msg web.Messa
 		return
 	}
 
-	rsp.Value = w.store.TempGet(req.Key)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Value = w.store.TempGet(ctx, req.Key)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -376,7 +485,7 @@ func (w *RuntimeWorker) onRuntimeTempGetRequest(client web.Client, msg web.Messa
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeTempExpireRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeTempExpireRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeTempExpireRequest)
 	rsp := new(protobufs.WebRuntimeTempExpireResponse)
 
@@ -385,7 +494,19 @@ func (w *RuntimeWorker) onRuntimeTempExpireRequest(client web.Client, msg web.Me
 		return
 	}
 
-	w.store.TempExpire(req.Key, time.Duration(req.ExpirationMs)*time.Millisecond)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	w.store.TempExpire(ctx, req.Key, time.Duration(req.ExpirationMs)*time.Millisecond)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -396,7 +517,7 @@ func (w *RuntimeWorker) onRuntimeTempExpireRequest(client web.Client, msg web.Me
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeTempDelRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeTempDelRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeTempDelRequest)
 	rsp := new(protobufs.WebRuntimeTempDelResponse)
 
@@ -405,7 +526,19 @@ func (w *RuntimeWorker) onRuntimeTempDelRequest(client web.Client, msg web.Messa
 		return
 	}
 
-	w.store.TempDel(req.Key)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	w.store.TempDel(ctx, req.Key)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -416,7 +549,7 @@ func (w *RuntimeWorker) onRuntimeTempDelRequest(client web.Client, msg web.Messa
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeSortedSetAddRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeSortedSetAddRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeSortedSetAddRequest)
 	rsp := new(protobufs.WebRuntimeSortedSetAddResponse)
 
@@ -425,7 +558,19 @@ func (w *RuntimeWorker) onRuntimeSortedSetAddRequest(client web.Client, msg web.
 		return
 	}
 
-	rsp.Result = w.store.SortedSetAdd(req.Key, req.Member, req.Score)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Result = w.store.SortedSetAdd(ctx, req.Key, req.Member, req.Score)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -436,7 +581,7 @@ func (w *RuntimeWorker) onRuntimeSortedSetAddRequest(client web.Client, msg web.
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeSortedSetRemoveRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeSortedSetRemoveRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeSortedSetRemoveRequest)
 	rsp := new(protobufs.WebRuntimeSortedSetRemoveResponse)
 
@@ -445,7 +590,19 @@ func (w *RuntimeWorker) onRuntimeSortedSetRemoveRequest(client web.Client, msg w
 		return
 	}
 
-	rsp.Result = w.store.SortedSetRemove(req.Key, req.Member)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Result = w.store.SortedSetRemove(ctx, req.Key, req.Member)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -456,7 +613,7 @@ func (w *RuntimeWorker) onRuntimeSortedSetRemoveRequest(client web.Client, msg w
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeSortedSetRemoveRangeByRankRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeSortedSetRemoveRangeByRankRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeSortedSetRemoveRangeByRankRequest)
 	rsp := new(protobufs.WebRuntimeSortedSetRemoveRangeByRankResponse)
 
@@ -465,7 +622,19 @@ func (w *RuntimeWorker) onRuntimeSortedSetRemoveRangeByRankRequest(client web.Cl
 		return
 	}
 
-	rsp.Result = w.store.SortedSetRemoveRangeByRank(req.Key, req.Start, req.Stop)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	rsp.Result = w.store.SortedSetRemoveRangeByRank(ctx, req.Key, req.Start, req.Stop)
 
 	msg.Header.Timestamp = timestamppb.Now()
 	if err := msg.Payload.MarshalFrom(rsp); err != nil {
@@ -476,7 +645,7 @@ func (w *RuntimeWorker) onRuntimeSortedSetRemoveRangeByRankRequest(client web.Cl
 	client.Write(msg)
 }
 
-func (w *RuntimeWorker) onRuntimeSortedSetRangeByScoreWithScoresRequest(client web.Client, msg web.Message) {
+func (w *RuntimeWorker) onRuntimeSortedSetRangeByScoreWithScoresRequest(ctx context.Context, client web.Client, msg web.Message) {
 	req := new(protobufs.WebRuntimeSortedSetRangeByScoreWithScoresRequest)
 	rsp := new(protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse)
 
@@ -485,7 +654,19 @@ func (w *RuntimeWorker) onRuntimeSortedSetRangeByScoreWithScoresRequest(client w
 		return
 	}
 
-	members := w.store.SortedSetRangeByScoreWithScores(req.Key, req.Min, req.Max)
+	if !w.isStoreConnected {
+		log.Error("Could not handle request %v. Database is not connected.", req)
+		msg.Header.Timestamp = timestamppb.Now()
+		if err := msg.Payload.MarshalFrom(rsp); err != nil {
+			log.Error("Could not marshal response: %v", err)
+			return
+		}
+
+		client.Write(msg)
+		return
+	}
+
+	members := w.store.SortedSetRangeByScoreWithScores(ctx, req.Key, req.Min, req.Max)
 	for _, m := range members {
 		rsp.Members = append(rsp.Members, &protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member{
 			Score:  m.Score,

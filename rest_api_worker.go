@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
-	qdb "github.com/rqure/qdb/src"
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
@@ -76,7 +76,7 @@ func NewRestApiWorker() *RestApiWorker {
 	}
 }
 
-func (w *RestApiWorker) Init(app.Handle) {
+func (w *RestApiWorker) Init(context.Context, app.Handle) {
 	http.HandleFunc("/make-client-id", func(wr http.ResponseWriter, r *http.Request) {
 		clientTimeout := DefaultClientTimeout
 		clientTimeoutStr := r.URL.Query().Get("clientTimeout")
@@ -678,14 +678,14 @@ func (w *RestApiWorker) Init(app.Handle) {
 	}))
 }
 
-func (w *RestApiWorker) Deinit() {
+func (w *RestApiWorker) Deinit(context.Context) {
 
 }
 
-func (w *RestApiWorker) DoWork() {
+func (w *RestApiWorker) DoWork(context.Context) {
 	for clientId, token := range w.activeClients {
 		if time.Since(token.ExpireAt) > 0 {
-			qdb.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for %v, disconnecting", clientId, token.Timeout)
+			log.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for %v, disconnecting", clientId, token.Timeout)
 			delete(w.activeClients, clientId)
 			w.ClientDisconnected.Emit(clientId)
 		}
@@ -695,7 +695,7 @@ func (w *RestApiWorker) DoWork() {
 		select {
 		case client := <-w.clientCh:
 			if client.Token != nil {
-				qdb.Info("[RestApiWorker::DoWork] New client connected: %v", client.Id())
+				log.Info("[RestApiWorker::DoWork] New client connected: %v", client.Id())
 				w.activeClients[client.Id()] = client.Token
 				w.ClientConnected.Emit(client)
 				client.Request.Header.AuthenticationStatus = protobufs.WebHeader_AUTHENTICATED

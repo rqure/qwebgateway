@@ -246,9 +246,13 @@ function registerTreeNodeComponent(app, context) {
                     const fieldName = result.getField();
                     const fieldValue = result.getValue();
                     const protoClass = fieldValue.getTypeName().split('.').reduce((o,i)=> o[i], proto);
-                    const writeTime = result.getWritetime().getRaw().toDate().toLocaleString('sv-SE', {
-                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                    }) + "." + result.getWritetime().getRaw().toDate().getMilliseconds().toString().padStart(3, '0');
+                    const writeTimeRaw = result.getWritetime().getRaw();
+                    let writeTime = new Date(0);
+                    if (writeTimeRaw) {
+                        writeTime = writeTimeRaw.toDate().toLocaleString('sv-SE', {
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        }) + "." + writeTimeRaw.toDate().getMilliseconds().toString().padStart(3, '0');
+                    }
 
                     this.treeStore.selectedNode.entityFields[fieldName] = {
                         name: fieldName,
@@ -262,8 +266,14 @@ function registerTreeNodeComponent(app, context) {
 
                     // Handle special field types
                     if (protoClass === proto.protobufs.Timestamp) {
+                        const timestampRaw = this.treeStore.selectedNode.entityFields[fieldName].value;
+                        let timestamp = new Date(0);
+                        if (timestampRaw) {
+                            timestamp = timestampRaw.toDate();
+                        }
+
                         this.treeStore.selectedNode.entityFields[fieldName].value = 
-                            this.treeStore.selectedNode.entityFields[fieldName].value.toDate().toLocaleString('sv-SE', {
+                            timestamp.toLocaleString('sv-SE', {
                                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                             });
                     }
