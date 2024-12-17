@@ -178,6 +178,11 @@ func (w *RuntimeWorker) onRuntimeRegisterNotificationRequest(ctx context.Context
 		return
 	}
 
+	if w.clientNotificationQueue[client.Id()] == nil {
+		log.Warn("Client %s has no notification queue. Is it likely that it has just diconnected?", client.Id())
+		return
+	}
+
 	for _, cfg := range req.Requests {
 		token := w.store.Notify(ctx, notification.FromConfigPb(cfg), notification.NewCallback(func(ctx context.Context, n data.Notification) {
 			if w.clientNotificationQueue[client.Id()][n.GetToken()] != nil {
