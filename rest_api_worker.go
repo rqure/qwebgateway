@@ -682,12 +682,12 @@ func (w *RestApiWorker) Deinit(context.Context) {
 
 }
 
-func (w *RestApiWorker) DoWork(context.Context) {
+func (w *RestApiWorker) DoWork(ctx context.Context) {
 	for clientId, token := range w.activeClients {
 		if time.Since(token.ExpireAt) > 0 {
 			log.Info("[RestApiWorker::DoWork] Client '%v' has been inactive for %v, disconnecting", clientId, token.Timeout)
 			delete(w.activeClients, clientId)
-			w.ClientDisconnected.Emit(clientId)
+			w.ClientDisconnected.Emit(ctx, clientId)
 		}
 	}
 
@@ -697,13 +697,13 @@ func (w *RestApiWorker) DoWork(context.Context) {
 			if client.Token != nil {
 				log.Info("[RestApiWorker::DoWork] New client connected: %v", client.Id())
 				w.activeClients[client.Id()] = client.Token
-				w.ClientConnected.Emit(client)
+				w.ClientConnected.Emit(ctx, client)
 				client.Request.Header.AuthenticationStatus = protobufs.WebHeader_AUTHENTICATED
 				client.Write(client.Request)
 			} else if token, ok := w.activeClients[client.Id()]; ok {
 				token.ExpireAt = time.Now().Add(token.Timeout)
 				client.Request.Header.AuthenticationStatus = protobufs.WebHeader_AUTHENTICATED
-				w.onRequest(client)
+				w.onRequest(ctx, client)
 			} else {
 				if client.Request == nil {
 					client.Request = &protobufs.WebMessage{}
@@ -723,8 +723,8 @@ func (w *RestApiWorker) DoWork(context.Context) {
 	}
 }
 
-func (w *RestApiWorker) onRequest(client *RestApiWebClient) {
+func (w *RestApiWorker) onRequest(ctx context.Context, client *RestApiWebClient) {
 	log.Trace("Received request from client: %v", client.Request)
 
-	w.Received.Emit(client, client.Request)
+	w.Received.Emit(ctx, client, client.Request)
 }
