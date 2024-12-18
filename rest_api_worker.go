@@ -57,6 +57,10 @@ func (c *RestApiWebClient) Close() {
 
 }
 
+func (c *RestApiWebClient) SetMessageHandler(web.MessageHandler) {
+
+}
+
 type RestApiWorker struct {
 	ClientConnected    signalslots.Signal
 	ClientDisconnected signalslots.Signal
