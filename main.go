@@ -8,7 +8,7 @@ import (
 	"github.com/rqure/qlib/pkg/data/store"
 )
 
-func getDatabaseAddress() string {
+func getStoreAddress() string {
 	addr := os.Getenv("Q_ADDR")
 	if addr == "" {
 		addr = "redis:6379"
@@ -28,7 +28,7 @@ func getWebServiceAddress() string {
 
 func main() {
 	s := store.NewRedis(store.RedisConfig{
-		Address: getDatabaseAddress(),
+		Address: getStoreAddress(),
 	})
 
 	storeWorker := workers.NewStore(s)
