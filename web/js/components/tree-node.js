@@ -41,7 +41,8 @@ function registerTreeNodeComponent(app, context) {
                     name: "",
                     type: "",
                     children: []
-                })
+                }),
+                loadingFields: false // Add this to track loading state
             }
         },
 
@@ -149,8 +150,23 @@ function registerTreeNodeComponent(app, context) {
             },
 
             async onNodeSelect() {
-                // Move field loading logic to a separate method
-                await this.loadFields();
+                // Prevent multiple simultaneous loads
+                if (this.loadingFields) return;
+                
+                // Check if node is already selected and fields are loaded
+                if (this.treeStore.selectedNode.entityId === this.nodeData.id &&
+                    Object.keys(this.treeStore.selectedNode.entityFields).length > 0) {
+                    // Just update name/type in case they changed
+                    this.treeStore.selectNode(this.nodeData);
+                    return;
+                }
+
+                this.loadingFields = true;
+                try {
+                    await this.loadFields();
+                } finally {
+                    this.loadingFields = false;
+                }
             },
 
             async loadFields() {
