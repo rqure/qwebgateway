@@ -4,8 +4,8 @@ go 1.22.7
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/rqure/qlib v0.0.32
-	google.golang.org/protobuf v1.36.0
+	github.com/rqure/qlib v0.0.33
+	google.golang.org/protobuf v1.36.1
 )
 
 require (
