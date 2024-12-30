@@ -347,7 +347,10 @@ func (w *RuntimeWorker) onRuntimeGetEntitiesRequest(ctx context.Context, client 
 		return
 	}
 
-	entities := query.New(w.store).ForType(req.EntityType).Execute(ctx)
+	entities := query.New(w.store).
+		Select().
+		From(req.EntityType).
+		Execute(ctx)
 
 	for _, ent := range entities {
 		rsp.Entities = append(rsp.Entities, entity.ToEntityPb(ent))

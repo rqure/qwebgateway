@@ -40,8 +40,13 @@ func (w *ConfigWorker) DoWork(context.Context) {
 }
 
 func (w *ConfigWorker) TriggerSchemaUpdate(ctx context.Context) {
-	for _, root := range query.New(w.store).ForType("Root").Execute(ctx) {
-		root.GetField("SchemaUpdateTrigger").WriteInt(ctx, 0)
+	roots := query.New(w.store).
+		Select().
+		From("Root").
+		Execute(ctx)
+
+	for _, root := range roots {
+		root.GetField("SchemaUpdateTrigger").WriteInt(ctx)
 	}
 }
 
