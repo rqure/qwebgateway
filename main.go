@@ -11,7 +11,7 @@ import (
 func getStoreAddress() string {
 	addr := os.Getenv("Q_ADDR")
 	if addr == "" {
-		addr = "redis:6379"
+		addr = "postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable"
 	}
 
 	return addr
@@ -27,20 +27,16 @@ func getWebServiceAddress() string {
 }
 
 func main() {
-	s := store.NewRedis(store.RedisConfig{
-		Address: getStoreAddress(),
+	s := store.NewPostgres(store.PostgresConfig{
+		ConnectionString: getStoreAddress(),
 	})
 
 	storeWorker := workers.NewStore(s)
 	webWorker := workers.NewWeb(getWebServiceAddress())
-	leadershipWorker := workers.NewLeadership(s)
 
 	configWorker := NewConfigWorker(s)
 	runtimeWorker := NewRuntimeWorker(s)
 	restApiWorker := NewRestApiWorker()
-
-	storeWorker.Connected.Connect(leadershipWorker.OnStoreConnected)
-	storeWorker.Disconnected.Connect(leadershipWorker.OnStoreDisconnected)
 
 	storeWorker.Connected.Connect(configWorker.OnStoreConnected)
 	storeWorker.Disconnected.Connect(configWorker.OnStoreDisconnected)
@@ -58,7 +54,6 @@ func main() {
 
 	a := app.NewApplication("webgateway")
 	a.AddWorker(storeWorker)
-	a.AddWorker(leadershipWorker)
 	a.AddWorker(restApiWorker)
 	a.AddWorker(webWorker)
 	a.AddWorker(configWorker)
