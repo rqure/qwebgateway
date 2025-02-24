@@ -1,5 +1,7 @@
 # qwebgateway
 
+NOW DEPRECATED IN FAVOR OF QSTORE.
+
 ## Database Backups and Restores
 
 Example of taking a database backup:
